@@ -1,86 +1,204 @@
 import os
+import random
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request
 
 app = Flask(__name__)
 
-# --- تنظیمات اصلی ---
-TOKEN = "1649912283:atESusXoVB3YgzqKiQ7sJg9Jn9oqLLl5TxY"
-BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+API_URL = f"https://api.bale.ai/bot{BOT_TOKEN}"
 
-# --- پیام‌های متنی ---
-WELCOME_MSG = """
-سلام و درود به ربات قرآنی «لبیک» خوش آمدید ✨📖
-
-همکار گرامی و کاربر عزیز، این بازو جهت انس بیشتر با کلام وحی و دسترسی سریع به آیات طراحی شده است.
-
-لطفاً برای شروع از دکمه‌های زیر استفاده کنید: 👇
-"""
-
-# --- توابع کمکی ---
-def send_message(chat_id, text, reply_markup=None):
-    url = f"{BASE_URL}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
-    
-    try:
-        requests.post(url, json=payload, timeout=10)
-    except Exception as e:
-        print(f"Error sending message: {e}")
-
+# ----------------------------
+# Keyboard / Menu
+# ----------------------------
 def get_main_keyboard():
-    """ایجاد منوی اصلی دکمه‌ای"""
     return {
         "keyboard": [
-            [{"text": "📖 جستجوی آیه"}, {"text": "🌙 آیه روز"}],
-            [{"text": "✨ آیات آرامش‌بخش"}, {"text": "🔍 جستجوی موضوعی"}],
-            [{"text": "🕌 راهنمای ربات"}]
+            [
+                {"text": "📖 قرآن در لحظه"},
+                {"text": "🕊️ حدیث تصادفی"}
+            ],
+            [
+                {"text": "📖 جستجوی قرآن"},
+                {"text": "🌐 جستجوی وب"}
+            ],
+            [
+                {"text": "🤖 هوش مصنوعی"},
+                {"text": "📚 مقالات علمی"}
+            ],
+            [
+                {"text": "📢 رویدادها"},
+                {"text": "📊 آمار من"}
+            ],
+            [
+                {"text": "📞 ارتباط با ادمین"},
+                {"text": "🔄 منوی اصلی"}
+            ]
         ],
         "resize_keyboard": True
     }
 
-# --- مسیرهای Flask ---
+# ----------------------------
+# Bot API helper
+# ----------------------------
+def send_message(chat_id, text, keyboard=None, parse_mode="HTML"):
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": parse_mode
+    }
+    if keyboard:
+        payload["reply_markup"] = keyboard
+
+    try:
+        r = requests.post(f"{API_URL}/sendMessage", json=payload, timeout=15)
+        print("send_message status:", r.status_code, r.text)
+    except Exception as e:
+        print("send_message error:", e)
+
+# ----------------------------
+# Content
+# ----------------------------
+WELCOME_MSG = """
+<b>سلام زندگی جان 🌷</b>
+
+به ربات قرآنی دلبر و جمع‌وجور ما خوش آمدی!
+از منوی زیر یکی را انتخاب کن تا با هم شروع کنیم ✨
+"""
+
+QURAN_INSTANT_MSG = """
+<b>📖 قرآن در لحظه</b>
+
+اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ
+<br><i>خداوند نور آسمان‌ها و زمین است.</i>
+"""
+
+RANDOM_HADITHS = [
+    """
+    <b>🕊️ حدیث تصادفی</b>
+
+    <b>متن عربی:</b>
+    «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ»
+
+    <b>ترجمه:</b>
+    ارزش عمل‌ها به نیت‌هاست.
+    """,
+    """
+    <b>🕊️ حدیث تصادفی</b>
+
+    <b>متن عربی:</b>
+    «الدِّينُ النَّصِيحَةُ»
+
+    <b>ترجمه:</b>
+    دین، خیرخواهی و نصیحت است.
+    """,
+    """
+    <b>🕊️ حدیث تصادفی</b>
+
+    <b>متن عربی:</b>
+    «سَهِّلُوا وَلا تُعَسِّرُوا»
+
+    <b>ترجمه:</b>
+    آسان بگیرید و سخت نگیرید.
+    """
+]
+
+HELP_MSG = """
+<b>📌 راهنما</b>
+
+از دکمه‌های منو استفاده کن:
+• قرآن در لحظه
+• حدیث تصادفی
+• جستجوی قرآن
+• جستجوی وب
+• هوش مصنوعی
+• مقالات علمی
+• رویدادها
+• آمار من
+
+اگر خواستی، بعداً برای هرکدام جستجوی واقعی هم وصل می‌کنیم.
+"""
+
+COMING_SOON = """
+<b>✨ این بخش هنوز در حال تکمیل است</b>
+
+فعلاً اسکلتش آماده‌ست و خیلی زود وصلش می‌کنیم.
+"""
+
+# ----------------------------
+# Routes
+# ----------------------------
 @app.route("/")
 def home():
-    return "Labbayk Quran Bot is ONLINE 🩺📖"
+    return "Robot is Alive and Healthy!"
 
-@app.route("/webhook", methods=['POST'])
+@app.route("/webhook", methods=["POST"])
 def webhook():
-    update = request.get_json()
-    
-    if not update or "message" not in update:
+    data = request.get_json(force=True, silent=True) or {}
+    print("UPDATE:", data)
+
+    message = data.get("message", {})
+    text = (message.get("text") or "").strip()
+    chat_id = message.get("chat", {}).get("id")
+
+    if not chat_id:
         return "OK", 200
 
-    message = update["message"]
-    chat_id = message["chat"]["id"]
-    text = message.get("text", "")
-
-    # منطق پاسخ‌دهی (Router)
-    if text == "/start":
+    if text in ["/start", "🔄 منوی اصلی"]:
         send_message(chat_id, WELCOME_MSG, get_main_keyboard())
-    
-    elif text == "📖 جستجوی آیه":
-        send_message(chat_id, "لطفاً نام سوره یا شماره آیه را ارسال کنید. (در نسخه بعد فعال می‌شود)")
-    
-    elif text == "🌙 آیه روز":
-        # اینجا بعداً کد انتخاب آیه تصادفی رو می‌زنیم
-        send_message(chat_id, "آیه روز: «أَلَا بِذِکْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ» 🌸\nآگاه باشید که با یاد خدا دل‌ها آرام می‌گیرد.")
-    
-    elif text == "✨ آیات آرامش‌بخش":
-        send_message(chat_id, "تقدیم به شما که پیام‌آور سلامت هستید: ❤️\n«وَ نُنَزِّلُ مِنَ الْقُرْآنِ ما هُوَ شِفاءٌ وَ رَحْمَةٌ لِلْمُؤْمِنِینَ»")
-    
-    elif text == "🕌 راهنمای ربات":
-        send_message(chat_id, "این ربات توسط خادمان قرآن طراحی شده و به مرور قابلیت‌های جدیدی به آن اضافه خواهد شد.")
-    
-    else:
-        # پاسخ به پیام‌های متفرقه
-        send_message(chat_id, f"پیام شما دریافت شد: {text}\nلطفاً از دکمه‌های منو استفاده کنید.")
+        return "OK", 200
 
+    if text == "📖 قرآن در لحظه":
+        send_message(chat_id, QURAN_INSTANT_MSG, get_main_keyboard())
+        return "OK", 200
+
+    if text == "🕊️ حدیث تصادفی":
+        send_message(chat_id, random.choice(RANDOM_HADITHS), get_main_keyboard())
+        return "OK", 200
+
+    if text == "📖 جستجوی قرآن":
+        send_message(
+            chat_id,
+            "<b>📖 جستجوی قرآن</b>\n\nفعلاً نسخه‌ی هوشمند جستجو در حال آماده‌سازی است.",
+            get_main_keyboard()
+        )
+        return "OK", 200
+
+    if text == "🌐 جستجوی وب":
+        send_message(chat_id, COMING_SOON, get_main_keyboard())
+        return "OK", 200
+
+    if text == "🤖 هوش مصنوعی":
+        send_message(chat_id, COMING_SOON, get_main_keyboard())
+        return "OK", 200
+
+    if text == "📚 مقالات علمی":
+        send_message(chat_id, COMING_SOON, get_main_keyboard())
+        return "OK", 200
+
+    if text == "📢 رویدادها":
+        send_message(chat_id, COMING_SOON, get_main_keyboard())
+        return "OK", 200
+
+    if text == "📊 آمار من":
+        send_message(
+            chat_id,
+            "<b>📊 آمار من</b>\n\n👤 این بخش به‌زودی به آمار شخصی کاربر وصل می‌شود.",
+            get_main_keyboard()
+        )
+        return "OK", 200
+
+    if text == "📞 ارتباط با ادمین":
+        send_message(
+            chat_id,
+            "<b>📞 ارتباط با ادمین</b>\n\nبرای پشتیبانی، بعداً آیدی ادمین را اینجا قرار می‌دهیم.",
+            get_main_keyboard()
+        )
+        return "OK", 200
+
+    send_message(chat_id, HELP_MSG, get_main_keyboard())
     return "OK", 200
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
