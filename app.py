@@ -1,82 +1,99 @@
-import json
-import urllib.request
-from flask import Flask, request, jsonify
+import os
+import sqlite3
+import requests
+from flask import Flask, request
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
 
 app = Flask(__name__)
 
-# توکن ربات بله
-BOT_TOKEN = "1649912283:atESusXoVB3YgzqKiQ7sJg9Jn9oqLLl5TxY"
+# --- تنظیمات اصلی ---
+BOT_TOKEN = os.environ.get("1649912283:atESusXoVB3YgzqKiQ7sJg9Jn9oqLLl5TxY")
+CHANNEL_ID = "@quran_sums"
+ADMIN_ID = 722283092
+API_URL = f"https://tapi.bale.ai/bot{1649912283:atESusXoVB3YgzqKiQ7sJg9Jn9oqLLl5TxY}"
 
-# آدرس API بله
-BASE_API_URL = f"https://tapi.bale.ai/bot{BOT_TOKEN}"
+# --- ایجاد و مدیریت دیتابیس ---
+def init_db():
+    conn = sqlite3.connect('bot_data.db')
+    c = conn.cursor()
+    # جدول کاربران
+    c.execute('''CREATE TABLE IF NOT EXISTS users 
+                 (user_id INTEGER PRIMARY KEY, username TEXT, joined_at TEXT)''')
+    # جدول پیام‌های زمان‌بندی شده
+    c.execute('''CREATE TABLE IF NOT EXISTS scheduled_posts 
+                 (id INTEGER PRIMARY KEY, content TEXT, post_time TEXT, status TEXT)''')
+    conn.commit()
+    conn.close()
 
+init_db()
 
-def call_api(method, params):
-    url = f"{BASE_API_URL}/{method}"
+# --- توابع کمکی ---
+def send_message(chat_id, text, reply_markup=None):
+    payload = {"chat_id": chat_id, "text": text}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    return requests.post(f"{API_URL}/sendMessage", json=payload)
 
-    data = json.dumps(params).encode("utf-8")
+def check_membership(user_id):
+    # چک کردن عضویت در کانال بله
+    res = requests.get(f"{API_URL}/getChatMember", params={"chat_id": CHANNEL_ID, "user_id": user_id})
+    if res.status_code == 200:
+        status = res.json().get("result", {}).get("status")
+        return status in ["creator", "administrator", "member"]
+    return False
 
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Content-Type": "application/json"
-        }
-    )
-
-    with urllib.request.urlopen(req) as response:
-        return json.loads(response.read().decode())
-
-
-def send_message(chat_id, text):
-    call_api(
-        "sendMessage",
-        {
-            "chat_id": chat_id,
-            "text": text
-        }
-    )
-
-
-@app.route("/")
-def home():
-    return "Bot is running!"
-
-
-@app.route("/webhook", methods=["POST"])
+# --- هندلر اصلی پیام‌ها ---
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    update = request.get_json()
+    update = request.json
+    if "message" not in update:
+        return "ok"
+    
+    msg = update["message"]
+    user_id = msg["chat"]["id"]
+    text = msg.get("text", "")
 
-    print(update)
+    # ۱. ثبت کاربر در دیتابیس
+    conn = sqlite3.connect('bot_data.db')
+    conn.execute("INSERT OR IGNORE INTO users (user_id, joined_at) VALUES (?, ?)", 
+                 (user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
 
-    if "message" in update:
+    # ۲. چک کردن عضویت اجباری
+    if not check_membership(user_id) and user_id != ADMIN_ID:
+        markup = {
+            "inline_keyboard": [[{"text": "عضویت در کانال 🌱", "url": f"https://bale.ai/{CHANNEL_ID[1:]}"}]]
+        }
+        send_message(user_id, "سلام! برای استفاده از امکانات ربات، لطفاً ابتدا عضو کانال ما بشید 👇", markup)
+        return "ok"
 
-        message = update["message"]
+    # ۳. منوی اصلی
+    if text == "/start":
+        main_menu = {
+            "keyboard": [
+                [{"text": "🤖 هوش مصنوعی"}, {"text": "📖 جستجوی قرآن"}],
+                [{"text": "🕊️ حدیث تصادفی"}, {"text": "🤲 دعا و مناجات"}],
+                [{"text": "📊 آمار من"}, {"text": "📞 ارتباط با ادمین"}]
+            ],
+            "resize_keyboard": True
+        }
+        # پیام خوشامدگویی اختصاصی (فقط برای بار اول یا هر بار استارت)
+        send_message(user_id, "سلام زندگی جان! به سوپر ربات هوشمند خودت خوش اومدی ✨", main_menu)
 
-        chat_id = message["chat"]["id"]
+    # ۴. بخش مدیریت (فقط برای تو)
+    if text == "/admin" and user_id == ADMIN_ID:
+        admin_menu = {
+            "keyboard": [
+                [{"text": "📢 ارسال همگانی"}, {"text": "⏰ زمان‌بندی پست"}],
+                [{"text": "📚 مدیریت منابع"}, {"text": "👥 آمار کل کاربران"}],
+                [{"text": "🔙 بازگشت"}]
+            ]
+        }
+        send_message(user_id, "وارد پنل مدیریت شدی ادمین عزیز. چه دستوری داری؟", admin_menu)
 
-        if "text" in message:
-
-            text = message["text"]
-
-            # دستور استارت
-            if text == "/start":
-
-                send_message(
-                    chat_id,
-                    "سلام 🌱\nربات بله با موفقیت فعال شد 😎"
-                )
-
-            else:
-
-                send_message(
-                    chat_id,
-                    f"پیام شما:\n{text}"
-                )
-
-    return jsonify({"ok": True})
-
+    return "ok"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
-
+    app.run(host='0.0.0.0', port=5000)
