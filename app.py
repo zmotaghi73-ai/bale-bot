@@ -12,7 +12,7 @@ app = Flask(__name__)
 TOKEN = os.getenv("BOT_TOKEN", "YOUR_BALE_BOT_TOKEN")
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "YOUR_DEEPSEEK_API_KEY")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
-CHANNEL_ID = os.getenv("CHANNEL_ID", "@sums_quran")
+CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
 DB_PATH = "bot_data.db"
 
