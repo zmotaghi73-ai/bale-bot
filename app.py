@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۸.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۹.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
-با موتور دانش اسلامی (Islamic Knowledge Engine)
+با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی معنایی
 """
 
 import os
@@ -20,7 +20,17 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from functools import wraps
 import traceback
-import jdatetime
+
+# =========================================================
+# پشتیبانی از تاریخ شمسی (با fallback به میلادی)
+# =========================================================
+try:
+    import jdatetime
+    HAS_JDATETIME = True
+    logger.info("✅ کتابخانه jdatetime با موفقیت بارگذاری شد.")
+except ImportError:
+    HAS_JDATETIME = False
+    logger.warning("⚠️ کتابخانه jdatetime نصب نیست. از تاریخ میلادی استفاده می‌شود.")
 
 # =========================================================
 # تنظیمات لاگ‌گیری پیشرفته
@@ -904,13 +914,23 @@ def send_chat_action(chat_id, action="typing"):
     })
 
 # =========================================================
-# ۱۲. سیستم چندزبانه (توسعه‌یافته با زبان عربی و فارسی‌محور)
+# ۱۲. توابع تاریخ شمسی (با fallback به میلادی)
 # =========================================================
 def get_persian_date():
     """دریافت تاریخ شمسی با اعداد فارسی"""
-    now = jdatetime.datetime.now()
-    months = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", 
-              "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"]
+    if HAS_JDATETIME:
+        try:
+            now = jdatetime.datetime.now()
+            months = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", 
+                      "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"]
+            return f"{now.day} {months[now.month-1]} {now.year}"
+        except:
+            pass
+    
+    # Fallback به تاریخ میلادی
+    now = datetime.now()
+    months = ["January", "February", "March", "April", "May", "June",
+              "July", "August", "September", "October", "November", "December"]
     return f"{now.day} {months[now.month-1]} {now.year}"
 
 def to_persian_numbers(text):
@@ -940,6 +960,44 @@ def get_persian_greeting():
     date = get_persian_date()
     return f"{greeting} 🌸\n📅 {date}"
 
+def get_greeting(lang):
+    """دریافت سلام بر اساس زبان"""
+    now = datetime.now()
+    hour = now.hour
+    
+    if lang == "fa":
+        if 5 <= hour < 12:
+            greeting = "صبح بخیر 🌅"
+        elif 12 <= hour < 17:
+            greeting = "ظهر بخیر ☀️"
+        elif 17 <= hour < 21:
+            greeting = "عصر بخیر 🌇"
+        else:
+            greeting = "شب بخیر 🌙"
+        date = get_persian_date()
+        return f"{greeting}\n📅 {date}"
+    elif lang == "ar":
+        if 5 <= hour < 12:
+            return "صباح الخير 🌅"
+        elif 12 <= hour < 17:
+            return "مساء الخير ☀️"
+        elif 17 <= hour < 21:
+            return "مساء الخير 🌇"
+        else:
+            return "ليلة سعيدة 🌙"
+    else:
+        if 5 <= hour < 12:
+            return "Good Morning 🌅"
+        elif 12 <= hour < 17:
+            return "Good Afternoon ☀️"
+        elif 17 <= hour < 21:
+            return "Good Evening 🌇"
+        else:
+            return "Good Night 🌙"
+
+# =========================================================
+# ۱۳. سیستم چندزبانه (توسعه‌یافته با زبان عربی و فارسی‌محور)
+# =========================================================
 LANGS = {
     "fa": {
         "select_lang": "🌍 لطفاً زبان موردنظرت را انتخاب کن:",
@@ -1157,7 +1215,7 @@ def safe_text(lang_code, key, default=None, **kwargs):
     return text
 
 # =========================================================
-# ۱۳. موتور دانش اسلامی (Islamic Knowledge Engine)
+# ۱۴. موتور دانش اسلامی (Islamic Knowledge Engine)
 # =========================================================
 def expand_topic(query):
     """توسعه موضوع با مترادف‌ها و کلمات کلیدی"""
@@ -1334,7 +1392,7 @@ def format_semantic_results(results, query, lang="fa"):
     return output
 
 # =========================================================
-# ۱۴. جستجوی کامل قرآن و کتاب‌ها (با تفسیر)
+# ۱۵. جستجوی کامل قرآن و کتاب‌ها (با تفسیر)
 # =========================================================
 def search_quran_only(q):
     """جستجو در قرآن با مدیریت خطا و بازگشت تفسیر"""
@@ -1439,7 +1497,7 @@ def format_search_result(item, book_name="قرآن"):
     return f"📚 <b>{item.get('title', '')}</b>\n{item['text']}\n✨ {item['trans']}\n💡 <b>تفسیر:</b> {item.get('interpretation', 'تفسیر ثبت نشده')}"
 
 # =========================================================
-# ۱۵. جستجوی مقالات از گوگل اسکالر
+# ۱۶. جستجوی مقالات از گوگل اسکالر
 # =========================================================
 def search_articles(query):
     """جستجوی مقالات با استفاده از Google Scholar و OpenAlex"""
@@ -1528,7 +1586,7 @@ def search_local_articles(query):
 💡 یا با کلمات کلیدی دیگه جستجو کن."""
 
 # =========================================================
-# ۱۶. سیستم پاداش و امتیازدهی هوشمند
+# ۱۷. سیستم پاداش و امتیازدهی هوشمند
 # =========================================================
 def calculate_reward(action, user_data):
     """محاسبه امتیاز بر اساس نوع فعالیت"""
@@ -1680,7 +1738,7 @@ def get_user_achievements(chat_id):
         return []
 
 # =========================================================
-# ۱۷. سیستم کوئست‌های روزانه
+# ۱۸. سیستم کوئست‌های روزانه
 # =========================================================
 def complete_quest(chat_id, quest_id, user_data):
     """انجام کوئست و دریافت امتیاز"""
@@ -1748,7 +1806,7 @@ def get_quests_status(chat_id):
         return []
 
 # =========================================================
-# ۱۸. سیستم بهترین کاربر روز و هفته
+# ۱۹. سیستم بهترین کاربر روز و هفته
 # =========================================================
 def get_best_user(period_type):
     """دریافت بهترین کاربر روز یا هفته"""
@@ -1897,7 +1955,7 @@ def schedule_best_users():
             time.sleep(60)
 
 # =========================================================
-# ۱۹. سیستم ارسال روزانه با تفسیر هوشمند
+# ۲۰. سیستم ارسال روزانه با تفسیر هوشمند
 # =========================================================
 def get_daily_interpretation(text, lang="fa"):
     """دریافت تفسیر هوشمند برای متن با استفاده از DeepSeek"""
@@ -2085,7 +2143,7 @@ def next_item(book_name, data_list):
     return item, new_idx
 
 # =========================================================
-# ۲۰. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
+# ۲۱. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
 # =========================================================
 def handle_state_message(chat_id, text, user):
     """پردازش پیام‌های وضعیت‌دار کاربر"""
@@ -2331,7 +2389,7 @@ def handle_state_message(chat_id, text, user):
     return False
 
 # =========================================================
-# ۲۱. توابع کمکی (توسعه‌یافته)
+# ۲۲. توابع کمکی (توسعه‌یافته)
 # =========================================================
 def get_user_state(chat_id):
     """دریافت وضعیت کاربر"""
@@ -2394,6 +2452,7 @@ def format_system_stats():
 📖 آیات قرآن: {stats['quran_count']}
 📜 خطبه‌های نهج‌البلاغه: {stats['nahj_count']}
 🤲 دعاهای صحیفه سجادیه: {stats['sahifeh_count']}
+🧠 موضوعات: {len(TOPICS_DATA)}
 
 📝 <b>بازخوردها:</b>
 📩 کل بازخوردها: {stats['total_feedbacks']}
@@ -2411,7 +2470,7 @@ def format_system_stats():
 📅 آخرین به‌روزرسانی: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
 
 # =========================================================
-# ۲۲. مسیرهای تست و سلامت (توسعه‌یافته)
+# ۲۳. مسیرهای تست و سلامت (توسعه‌یافته)
 # =========================================================
 @app.route("/", methods=["GET", "HEAD"])
 def health():
@@ -2419,7 +2478,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "8.0",
+        "version": "9.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "quran_records": len(QURAN_DATA),
@@ -2433,7 +2492,8 @@ def health():
         "port": PORT,
         "supported_languages": ["fa", "en", "ar"],
         "islamic_knowledge_engine": FEATURES["islamic_knowledge_engine"],
-        "semantic_search": FEATURES["semantic_search"]
+        "semantic_search": FEATURES["semantic_search"],
+        "jdatetime_installed": HAS_JDATETIME
     }), 200
 
 @app.route("/webhook", methods=["GET", "HEAD"])
@@ -2446,7 +2506,7 @@ def webhook_check():
     }), 200
 
 # =========================================================
-# ۲۳. وب هوک و مدیریت یکپارچه درخواست‌ها (توسعه‌یافته)
+# ۲۴. وب هوک و مدیریت یکپارچه درخواست‌ها (توسعه‌یافته)
 # =========================================================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook_token():
@@ -2531,12 +2591,13 @@ def webhook_token():
                 return "OK", 200
 
             # نمایش منوی اصلی با پیام خوش‌آمدگویی پویا
-            greeting = get_persian_greeting()
+            greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
             
             # دریافت عنوان کاربر
             title = get_user_title(user.get("score", 0))
             
-            welcome_text = f"""{greeting}
+            if lang == "fa":
+                welcome_text = f"""{greeting}
 
 {first_name} جان! 😍
 
@@ -2555,6 +2616,8 @@ def webhook_token():
 • سیستم دعوت و پاداش 🤝
 
 👇 از منوی زیبای زیر استفاده کن:"""
+            else:
+                welcome_text = safe_text(lang, "welcome", name=first_name)
             
             send_message(chat_id, welcome_text, main_menu(chat_id, lang))
             
@@ -2608,7 +2671,10 @@ def webhook_token():
                 else:
                     greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
                     title = get_user_title(user.get("score", 0))
-                    welcome_text = f"{greeting}\n\n{first_name} جان! 😍\n\nبه ربات کانون قرآن و عترت خوش آمدی.\n👑 عنوان: {title}\n\nاز منوی زیر استفاده کن:"
+                    if lang == "fa":
+                        welcome_text = f"{greeting}\n\n{first_name} جان! 😍\n\nبه ربات کانون قرآن و عترت خوش آمدی.\n👑 عنوان: {title}\n\nاز منوی زیر استفاده کن:"
+                    else:
+                        welcome_text = safe_text(lang, "welcome", name=first_name)
                     send_message(chat_id, welcome_text, main_menu(chat_id, lang))
                 return "OK", 200
 
@@ -2637,11 +2703,18 @@ def webhook_token():
                 update_user(chat_id, state="none")
                 greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
                 title = get_user_title(user.get("score", 0))
-                send_message(
-                    chat_id,
-                    f"{greeting}\n\n{first_name} جان! 🍃\nبه منوی اصلی خوش اومدی.\n👑 عنوان: {title}",
-                    main_menu(chat_id, lang)
-                )
+                if lang == "fa":
+                    send_message(
+                        chat_id,
+                        f"{greeting}\n\n{first_name} جان! 🍃\nبه منوی اصلی خوش اومدی.\n👑 عنوان: {title}",
+                        main_menu(chat_id, lang)
+                    )
+                else:
+                    send_message(
+                        chat_id,
+                        f"{greeting}\n\n{safe_text(lang, 'back_to_menu')}",
+                        main_menu(chat_id, lang)
+                    )
                 return "OK", 200
 
             # ===========================
@@ -2659,9 +2732,8 @@ def webhook_token():
             # موتور دانش اسلامی
             # ===========================
             if cb_data == "menu_islamic_engine":
-                send_message(
-                    chat_id,
-                    """🧠 <b>موتور دانش اسلامی (Islamic Knowledge Engine)</b>
+                if lang == "fa":
+                    msg = """🧠 <b>موتور دانش اسلامی (Islamic Knowledge Engine)</b>
 
 این موتور هوشمند، جستجوی شما را در تمام منابع اسلامی انجام می‌دهد:
 
@@ -2684,9 +2756,11 @@ def webhook_token():
 
 📝 <b>کافی است موضوع مورد نظر خود را در بخش «جستجوی قرآن» وارد کنید.</b>
 
-🌟 این موتور، ربات را از یک جستجوگر به یک دستیار پژوهشی اسلامی تبدیل می‌کند.""",
-                    main_menu(chat_id, lang)
-                )
+🌟 این موتور، ربات را از یک جستجوگر به یک دستیار پژوهشی اسلامی تبدیل می‌کند."""
+                else:
+                    msg = safe_text(lang, "islamic_engine_info", default="🧠 Islamic Knowledge Engine\n\nSearch in Quran, Nahjolbalagheh, Sahifeh Sajjadieh, Hadiths and Articles.")
+                
+                send_message(chat_id, msg, main_menu(chat_id, lang))
                 return "OK", 200
 
             # ===========================
@@ -3251,7 +3325,8 @@ https://ble.ir/{bot_username}"""
             # راهنما
             # ===========================
             if cb_data == "menu_help":
-                help_text = """❓ <b>راهنمای استفاده از ربات</b>
+                if lang == "fa":
+                    help_text = """❓ <b>راهنمای استفاده از ربات</b>
 
 📖 <b>جستجوی هوشمند قرآن:</b>
 • عبارت مورد نظر را وارد کنید
@@ -3305,6 +3380,8 @@ https://ble.ir/{bot_username}"""
 • العربية 🇸🇦
 
 💚 همراه همیشگی تو در مسیر نور"""
+                else:
+                    help_text = safe_text(lang, "help_text", default="📚 Help Guide\n\nUse /start to begin.")
                 
                 send_message(chat_id, help_text, main_menu(chat_id, lang))
                 return "OK", 200
@@ -3320,9 +3397,8 @@ https://ble.ir/{bot_username}"""
                         send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
                         return "OK", 200
                     update_user(chat_id, state="waiting_quran_search")
-                    send_message(
-                        chat_id,
-                        f"""📖 <b>جستجوی هوشمند در منابع اسلامی</b>
+                    if lang == "fa":
+                        msg = f"""📖 <b>جستجوی هوشمند در منابع اسلامی</b>
 
 🔍 کلمه یا موضوع مورد نظر خود را وارد کنید:
 
@@ -3335,9 +3411,10 @@ https://ble.ir/{bot_username}"""
 • احادیث 🕊️
 • مقالات علمی 📚
 
-📝 لطفاً عبارت خود را ارسال کنید:""",
-                        back_menu_keyboard(lang)
-                    )
+📝 لطفاً عبارت خود را ارسال کنید:"""
+                    else:
+                        msg = safe_text(lang, "search_quran_prompt")
+                    send_message(chat_id, msg, back_menu_keyboard(lang))
                 
                 elif action == "ai":
                     if not FEATURES["deepseek_ai"]:
@@ -3413,11 +3490,11 @@ https://ble.ir/{bot_username}"""
                         send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
                         return "OK", 200
                     update_user(chat_id, state="waiting_feedback")
-                    send_message(
-                        chat_id,
-                        "📝 <b>پیشنهاد یا انتقاد خود را بنویسید</b>\n\n💡 نکات برای دریافت امتیاز بیشتر:\n• پیشنهاد خود را دقیق و تأثیرگذار بنویسید\n• از کلمات کلیدی مناسب استفاده کنید\n• پیشنهاد سازنده و عملی ارائه دهید\n\n⭐ حداکثر امتیاز: ۵ (کمتر از جستجوی قرآن)",
-                        back_menu_keyboard(lang)
-                    )
+                    if lang == "fa":
+                        msg = "📝 <b>پیشنهاد یا انتقاد خود را بنویسید</b>\n\n💡 نکات برای دریافت امتیاز بیشتر:\n• پیشنهاد خود را دقیق و تأثیرگذار بنویسید\n• از کلمات کلیدی مناسب استفاده کنید\n• پیشنهاد سازنده و عملی ارائه دهید\n\n⭐ حداکثر امتیاز: ۵ (کمتر از جستجوی قرآن)"
+                    else:
+                        msg = safe_text(lang, "feedback_prompt", default="📝 Write your suggestion or critique:")
+                    send_message(chat_id, msg, back_menu_keyboard(lang))
                 
                 elif action == "admin_msg":
                     update_user(chat_id, state="waiting_admin_msg")
@@ -3520,10 +3597,18 @@ https://ble.ir/{bot_username}"""
                     send_message(chat_id, safe_text(lang, "about"), main_menu(chat_id, lang))
                 
                 elif action == "quests":
-                    send_message(chat_id, "🎯 <b>کوئست‌های روزانه</b>\n\nبا انجام هر کوئست، امتیاز بگیر و در لیگ قرآنی بدرخش! 🌟", quest_keyboard(lang))
+                    if lang == "fa":
+                        msg = "🎯 <b>کوئست‌های روزانه</b>\n\nبا انجام هر کوئست، امتیاز بگیر و در لیگ قرآنی بدرخش! 🌟"
+                    else:
+                        msg = safe_text(lang, "quests_info", default="🎯 Daily Quests")
+                    send_message(chat_id, msg, quest_keyboard(lang))
                 
                 elif action == "best_users":
-                    send_message(chat_id, "🏅 <b>بهترین کاربران</b>\n\nهر شب ساعت ۲۳:۵۹ بهترین کاربر روز\nهر جمعه ساعت ۲۳:۵۹ بهترین کاربر هفته\n\nبرای مشاهده انتخاب کن:", best_users_keyboard(lang))
+                    if lang == "fa":
+                        msg = "🏅 <b>بهترین کاربران</b>\n\nهر شب ساعت ۲۳:۵۹ بهترین کاربر روز\nهر جمعه ساعت ۲۳:۵۹ بهترین کاربر هفته\n\nبرای مشاهده انتخاب کن:"
+                    else:
+                        msg = safe_text(lang, "best_users_info", default="🏅 Best Users")
+                    send_message(chat_id, msg, best_users_keyboard(lang))
                 
                 elif action == "referral":
                     referral_code = user.get("referral_code", "")
@@ -3536,7 +3621,8 @@ https://ble.ir/{bot_username}"""
 🌟 کد دعوت شما: <code>{referral_code}</code>
 
 🎁 با دعوت از دوستان:
-• به شما و دوستتان ۱۰ امتیاز هدیه داده می‌شود• با هر دعوت، یک کوئست جدید فعال می‌شود
+• به شما و دوستتان ۱۰ امتیاز هدیه داده می‌شود
+• با هر دعوت، یک کوئست جدید فعال می‌شود
 • پس از ۵ دعوت، عنوان «🥉 دعوت‌کننده برنزی» دریافت می‌کنید
 
 📊 تعداد دعوت‌های شما: {user.get('referral_count', 0)}
@@ -3547,9 +3633,8 @@ https://ble.ir/{bot_username}"""
                     send_message(chat_id, msg, referral_keyboard(lang, referral_code))
                 
                 elif action == "islamic_engine":
-                    send_message(
-                        chat_id,
-                        """🧠 <b>موتور دانش اسلامی (Islamic Knowledge Engine)</b>
+                    if lang == "fa":
+                        msg = """🧠 <b>موتور دانش اسلامی (Islamic Knowledge Engine)</b>
 
 این موتور هوشمند، جستجوی شما را در تمام منابع اسلامی انجام می‌دهد:
 
@@ -3572,9 +3657,11 @@ https://ble.ir/{bot_username}"""
 
 📝 <b>کافی است موضوع مورد نظر خود را در بخش «جستجوی قرآن» وارد کنید.</b>
 
-🌟 این موتور، ربات را از یک جستجوگر به یک دستیار پژوهشی اسلامی تبدیل می‌کند.""",
-                        main_menu(chat_id, lang)
-                    )
+🌟 این موتور، ربات را از یک جستجوگر به یک دستیار پژوهشی اسلامی تبدیل می‌کند."""
+                    else:
+                        msg = safe_text(lang, "islamic_engine_info", default="🧠 Islamic Knowledge Engine")
+                    
+                    send_message(chat_id, msg, main_menu(chat_id, lang))
                 
                 else:
                     send_message(chat_id, safe_text(lang, "under_construction"), main_menu(chat_id, lang))
@@ -3591,7 +3678,7 @@ https://ble.ir/{bot_username}"""
         return "OK", 200
 
 # =========================================================
-# ۲۴. کیبوردهای اینلاین (توسعه‌یافته)
+# ۲۵. کیبوردهای اینلاین (توسعه‌یافته)
 # =========================================================
 def lang_keyboard():
     """کیبورد انتخاب زبان با پشتیبانی از عربی"""
@@ -3732,7 +3819,7 @@ def reminder_keyboard(lang):
     }
 
 # =========================================================
-# ۲۵. عضویت اجباری کانال بله (با کش)
+# ۲۶. عضویت اجباری کانال بله (با کش)
 # =========================================================
 MEMBERSHIP_CACHE = {}
 CACHE_DURATION = 300  # 5 دقیقه
@@ -3771,7 +3858,7 @@ def check_membership(chat_id):
         return True
 
 # =========================================================
-# ۲۶. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا و رفع باگ)
+# ۲۷. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا و رفع باگ)
 # =========================================================
 def ask_deepseek(question, lang):
     """ارسال سوال به DeepSeek با مدیریت کامل خطا"""
@@ -3844,7 +3931,7 @@ def ask_deepseek(question, lang):
         return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً بعداً تلاش کنید."
 
 # =========================================================
-# ۲۷. اجرای استارتاپ و سرور وب (توسعه‌یافته)
+# ۲۸. اجرای استارتاپ و سرور وب (توسعه‌یافته)
 # =========================================================
 def startup():
     """راه‌اندازی اولیه ربات با تمام قابلیت‌ها"""
@@ -3902,6 +3989,7 @@ def startup():
         logger.info(f"🌍 زبان‌های پشتیبانی: فارسی, English, العربية")
         logger.info(f"🧠 موتور دانش اسلامی: {'فعال' if FEATURES['islamic_knowledge_engine'] else 'غیرفعال'}")
         logger.info(f"🔍 جستجوی معنایی: {'فعال' if FEATURES['semantic_search'] else 'غیرفعال'}")
+        logger.info(f"📅 تاریخ شمسی: {'فعال' if HAS_JDATETIME else 'غیرفعال (استفاده از میلادی)'}")
         
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
