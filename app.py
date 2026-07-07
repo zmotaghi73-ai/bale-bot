@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۴.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۵.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با تمام قابلیت‌های بهبودیافته و رفع باگ‌ها
 """
@@ -43,7 +43,7 @@ if not TOKEN:
     logger.error("⚠️ BOT_TOKEN تنظیم نشده است!")
     raise ValueError("BOT_TOKEN is required")
 
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "sk-090c2a86847c4583944621a5113d0382")
+DEEPSEEK_KEY = "sk-090c2a86847c4583944621a5113d0382"
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
@@ -82,7 +82,9 @@ FEATURES = {
     "user_titles": True,
     "achievement_system": True,
     "reminder_system": True,
-    "statistics_advanced": True
+    "statistics_advanced": True,
+    "best_user_daily": True,
+    "best_user_weekly": True
 }
 
 # =========================================================
@@ -172,11 +174,26 @@ ACHIEVEMENTS = {
     "quran_lover": {"name": "❤️ عاشق قرآن", "points": 15},
     "hadith_reader": {"name": "🕊️ حدیث‌خوان", "points": 10},
     "streak_7": {"name": "🔥 هفت روز پیاپی", "points": 25},
-    "streak_30": {"name": "⭐ سی روز پیاپی", "points": 50}
+    "streak_30": {"name": "⭐ سی روز پیاپی", "points": 50},
+    "score_100": {"name": "💎 صد امتیازی", "points": 30},
+    "score_500": {"name": "👑 پانصد امتیازی", "points": 60}
 }
 
 # =========================================================
-# ۷. توابع راه‌اندازی و مدیریت فایل‌های JSON
+# ۷. دکمه‌های جذاب برای کسب امتیاز
+# =========================================================
+QUEST_ACTIONS = [
+    {"id": "quran_search", "label": "📖 جستجوی قرآن", "points": 3, "desc": "هر بار جستجو در قرآن"},
+    {"id": "daily_visit", "label": "🌅 بازدید روزانه", "points": 5, "desc": "هر روز از ربات بازدید کن"},
+    {"id": "feedback", "label": "📝 ارسال پیشنهاد", "points": 10, "desc": "پیشنهاد سازنده بده"},
+    {"id": "hadith_read", "label": "🕊️ مطالعه حدیث", "points": 2, "desc": "حدیث روزانه را بخوان"},
+    {"id": "instant_quran", "label": "✨ قرآن در لحظه", "points": 2, "desc": "آیه لحظه را دریافت کن"},
+    {"id": "streak_7", "label": "🔥 ۷ روز پیاپی", "points": 15, "desc": "هفت روز متوالی بازدید کن"},
+    {"id": "streak_30", "label": "⭐ ۳۰ روز پیاپی", "points": 30, "desc": "سی روز متوالی بازدید کن"},
+]
+
+# =========================================================
+# ۸. توابع راه‌اندازی و مدیریت فایل‌های JSON
 # =========================================================
 def ensure_library_files():
     """ایجاد فایل‌های کتابخانه در صورت عدم وجود"""
@@ -248,7 +265,7 @@ def save_library_file(file_path, data):
         return False
 
 # =========================================================
-# ۸. مدیریت دیتابیس (توسعه‌یافته)
+# ۹. مدیریت دیتابیس (توسعه‌یافته)
 # =========================================================
 def db_conn():
     """اتصال به دیتابیس با مدیریت خطا"""
@@ -280,7 +297,9 @@ def init_db():
             total_visits INTEGER DEFAULT 0,
             achievements TEXT DEFAULT '',
             last_visit_date TEXT DEFAULT '',
-            daily_visit_count INTEGER DEFAULT 0
+            daily_visit_count INTEGER DEFAULT 0,
+            total_quests_completed INTEGER DEFAULT 0,
+            last_quest_date TEXT DEFAULT ''
         )
     """)
     
@@ -315,7 +334,8 @@ def init_db():
             score INTEGER DEFAULT 0,
             created_at TEXT,
             status TEXT DEFAULT 'pending',
-            category TEXT DEFAULT 'general'
+            category TEXT DEFAULT 'general',
+            is_read INTEGER DEFAULT 0
         )
     """)
     
@@ -378,6 +398,30 @@ def init_db():
         )
     """)
     
+    # جدول بهترین کاربران
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS best_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            user_name TEXT,
+            score INTEGER DEFAULT 0,
+            period_type TEXT,
+            period_date TEXT,
+            created_at TEXT
+        )
+    """)
+    
+    # جدول کوئست‌های انجام شده
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_quests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            quest_id TEXT,
+            completed_at TEXT,
+            UNIQUE(user_id, quest_id)
+        )
+    """)
+    
     # مقداردهی اولیه publish_state
     for book in ["quran", "nahj", "sahifeh"]:
         cur.execute("INSERT OR IGNORE INTO publish_state (book_name, last_index) VALUES (?, 0)", (book,))
@@ -394,7 +438,8 @@ def get_user(chat_id):
         cur.execute("""
             SELECT name, lang, score, search_count, streak, feedback_score, 
                    last_active, join_date, receive_daily, state, total_visits, 
-                   achievements, last_visit_date, daily_visit_count 
+                   achievements, last_visit_date, daily_visit_count,
+                   total_quests_completed, last_quest_date
             FROM users WHERE chat_id = ?
         """, (chat_id,))
         row = cur.fetchone()
@@ -415,7 +460,9 @@ def get_user(chat_id):
                 "total_visits": row[10] or 0,
                 "achievements": row[11] or "",
                 "last_visit_date": row[12] or "",
-                "daily_visit_count": row[13] or 0
+                "daily_visit_count": row[13] or 0,
+                "total_quests_completed": row[14] or 0,
+                "last_quest_date": row[15] or ""
             }
     except Exception as e:
         logger.error(f"خطا در دریافت کاربر {chat_id}: {e}")
@@ -425,7 +472,8 @@ def get_user(chat_id):
         "streak": 0, "feedback_score": 0, "last_active": "",
         "join_date": "", "receive_daily": 0, "state": "none",
         "total_visits": 0, "achievements": "", "last_visit_date": "",
-        "daily_visit_count": 0
+        "daily_visit_count": 0, "total_quests_completed": 0,
+        "last_quest_date": ""
     }
 
 def ensure_user(chat_id, name=""):
@@ -456,11 +504,12 @@ def update_user(chat_id, **kwargs):
         fields = []
         values = []
         for key, value in kwargs.items():
-            if key in ["name", "lang", "state", "achievements"]:
+            if key in ["name", "lang", "state", "achievements", "last_quest_date"]:
                 fields.append(f"{key} = ?")
                 values.append(value)
             elif key in ["score", "search_count", "streak", "feedback_score", 
-                        "receive_daily", "total_visits", "daily_visit_count"]:
+                        "receive_daily", "total_visits", "daily_visit_count",
+                        "total_quests_completed"]:
                 fields.append(f"{key} = {key} + ?")
                 values.append(value)
             elif key in ["score_set", "search_count_set", "streak_set"]:
@@ -515,7 +564,7 @@ def get_leaderboard(limit=10):
         conn = db_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT name, score, total_visits 
+            SELECT name, score, total_visits, streak 
             FROM users 
             WHERE score > 0 AND total_visits > 0
             ORDER BY score DESC, total_visits DESC 
@@ -528,11 +577,11 @@ def get_leaderboard(limit=10):
         if not users:
             logger.info("لیگ قرآنی خالی است، استفاده از داده‌های نمونه")
             return [
-                ("امیرحسین", 150, 25),
-                ("زهرا", 120, 20),
-                ("محمد", 100, 18),
-                ("سارا", 80, 15),
-                ("علی", 60, 12)
+                ("امیرحسین", 150, 25, 7),
+                ("زهرا", 120, 20, 5),
+                ("محمد", 100, 18, 4),
+                ("سارا", 80, 15, 3),
+                ("علی", 60, 12, 2)
             ]
         
         return users
@@ -621,7 +670,7 @@ def log_error(error_type, error_message, traceback_str, user_id=None):
         cur.execute("""
             INSERT INTO error_logs (error_type, error_message, traceback, user_id, created_at)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (error_type, error_message, traceback_str[:500], user_id))
+        """, (error_type, error_message[:500], traceback_str[:500], user_id))
         conn.commit()
         conn.close()
     except:
@@ -664,7 +713,7 @@ def update_daily_stats():
         logger.error(f"خطا در به‌روزرسانی آمار روزانه: {e}")
 
 # =========================================================
-# ۹. ابزارهای ارسال پیام به بله (با قابلیت Retry)
+# ۱۰. ابزارهای ارسال پیام به بله (با قابلیت Retry)
 # =========================================================
 def send_bale(method, data, retry_count=3):
     """ارسال درخواست به API بله با قابلیت تکرار"""
@@ -740,7 +789,7 @@ def send_chat_action(chat_id, action="typing"):
     })
 
 # =========================================================
-# ۱۰. سیستم چندزبانه (توسعه‌یافته)
+# ۱۱. سیستم چندزبانه (توسعه‌یافته)
 # =========================================================
 LANGS = {
     "fa": {
@@ -754,16 +803,16 @@ LANGS = {
         "admin_msg_prompt": "📩 با خیال راحت پیامت رو بنویس. من می‌رسونم به ادمین.",
         "admin_msg_sent": "✅ پیامت با عشق برای ادمین ارسال شد. 🙏",
         "under_construction": "🚧 این بخش در حال زیباتر شدن است. به‌زودی می‌آید.",
-        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}",
-        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجو در قرآن با ترجمه 📖\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n\n💚 همراه همیشگی تو در مسیر نور",
+        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}",
+        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجو در قرآن با ترجمه 📖\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n\n💚 همراه همیشگی تو در مسیر نور",
         "daily_enable": "✅ دریافت روزانه فعال شد. هر روز با عشق محتوای جدید می‌فرستم.",
         "daily_disable": "❌ دریافت روزانه غیرفعال شد. هر وقت خواستی فعالش کن.",
         "daily_toggle": "🔔 دریافت روزانه",
         "back_to_menu": "🏠 برگشت به منوی اصلی",
         "search_quran_prompt": "📖 کلمه یا عبارت قرآنی موردنظرت رو بفرست تا با عشق جستجو کنیم.",
         "article_prompt": "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.",
-        "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}\n\n💡 برای کسب امتیاز:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅",
-        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n👑 عنوان: {title}",
+        "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}\n\n💡 برای کسب امتیاز:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️",
+        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n👑 عنوان: {title}\n✅ کوئست‌ها: {quests}",
         "events_text": "📢 رویدادها و مسابقات کانون:\n\n🔹 جشنواره قرآن و عترت\n🔹 مسابقات حفظ و مفاهیم قرآن\n🔹 کارگاه‌های تفسیر و تدبر\n🔹 برنامه‌های ماه رمضان\n🔹 جلسات هفتگی قرآن\n🔹 مسابقات مقاله‌نویسی قرآنی\n\n📌 برای اطلاعات بیشتر به کانال مراجعه کن.",
         "unknown_error": "⚠️ یه خطای کوچک رخ داد. دوباره امتحان کن، مطمئنم موفق می‌شی.",
         "article_result": "📚 نتایج جستجوی مقالات علمی برای «{query}»:\n\n{results}\n\n💡 اگر نتیجه‌ای نیافتی، می‌تونی از مقالات پیشنهادی ما استفاده کنی.",
@@ -783,6 +832,7 @@ LANGS = {
         "admin_back": "🔄 بازگشت",
         "admin_system": "💻 وضعیت سیستم",
         "admin_achievements": "🏅 مدیریت دستاوردها",
+        "admin_best_users": "🏆 بهترین کاربران",
         "menu_labels": {
             "search_quran": "📖 جستجوی قرآن",
             "ai": "🤖 هوش مصنوعی",
@@ -800,7 +850,9 @@ LANGS = {
             "about": "ℹ️ درباره ربات",
             "help": "❓ راهنما",
             "share": "📤 اشتراک‌گذاری",
-            "reminder": "⏰ یادآوری"
+            "reminder": "⏰ یادآوری",
+            "quests": "🎯 کوئست‌های روزانه",
+            "best_users": "🏅 بهترین کاربران"
         }
     },
     "en": {
@@ -814,16 +866,16 @@ LANGS = {
         "admin_msg_prompt": "📩 Send your message and I'll forward it to admin:",
         "admin_msg_sent": "✅ Your message was sent to admin.",
         "under_construction": "🚧 This section is under construction.",
-        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}",
-        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Quran Search with translation 📖\n• AI Assistant 🤖\n• Scientific Articles 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐",
+        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}",
+        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Quran Search with translation 📖\n• AI Assistant 🤖\n• Scientific Articles 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅",
         "daily_enable": "✅ Daily receive enabled.",
         "daily_disable": "❌ Daily receive disabled.",
         "daily_toggle": "🔔 Daily Receive",
         "back_to_menu": "🏠 Back to main menu",
         "search_quran_prompt": "📖 Send a Quranic word or phrase to search.",
         "article_prompt": "📚 Send your article topic or keyword.",
-        "league_text": "🏆 Quran League:\n\n{leaderboard}\n\n💡 To earn points:\n• Quran Search 📖\n• Send feedback 📝\n• Daily visit 🌅",
-        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n👑 Title: {title}",
+        "league_text": "🏆 Quran League:\n\n{leaderboard}\n\n💡 To earn points:\n• Quran Search 📖\n• Send feedback 📝\n• Daily visit 🌅\n• Read Hadith 🕊️",
+        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n👑 Title: {title}\n✅ Quests: {quests}",
         "events_text": "📢 Events and contests:\n\n🔹 Quran and Etrat Festival\n🔹 Memorization contests\n🔹 Interpretation workshops\n🔹 Ramadan programs\n🔹 Weekly Quran sessions\n🔹 Quranic writing contests",
         "unknown_error": "⚠️ A small error occurred. Please try again.",
         "article_result": "📚 Scientific article results for «{query}»:\n\n{results}\n\n💡 If no results found, try our suggested articles.",
@@ -843,6 +895,7 @@ LANGS = {
         "admin_back": "🔄 Back",
         "admin_system": "💻 System Status",
         "admin_achievements": "🏅 Manage Achievements",
+        "admin_best_users": "🏆 Best Users",
         "menu_labels": {
             "search_quran": "📖 Quran Search",
             "ai": "🤖 AI Assistant",
@@ -860,7 +913,9 @@ LANGS = {
             "about": "ℹ️ About Bot",
             "help": "❓ Help",
             "share": "📤 Share",
-            "reminder": "⏰ Reminder"
+            "reminder": "⏰ Reminder",
+            "quests": "🎯 Daily Quests",
+            "best_users": "🏅 Best Users"
         }
     }
 }
@@ -881,7 +936,7 @@ def safe_text(lang_code, key, default=None, **kwargs):
     return text
 
 # =========================================================
-# ۱۱. کیبوردهای اینلاین (توسعه‌یافته)
+# ۱۲. کیبوردهای اینلاین (توسعه‌یافته)
 # =========================================================
 def lang_keyboard():
     """کیبورد انتخاب زبان"""
@@ -907,8 +962,32 @@ def back_menu_keyboard(lang):
     text = safe_text(lang, "back_to_menu")
     return {"inline_keyboard": [[{"text": text, "callback_data": "back_main"}]]}
 
+def quest_keyboard(lang):
+    """کیبورد کوئست‌های روزانه"""
+    return {
+        "inline_keyboard": [
+            [{"text": "🎯 جستجوی قرآن (۳ امتیاز)", "callback_data": "quest_quran_search"}],
+            [{"text": "🌅 بازدید روزانه (۵ امتیاز)", "callback_data": "quest_daily_visit"}],
+            [{"text": "📝 ارسال پیشنهاد (۱۰ امتیاز)", "callback_data": "quest_feedback"}],
+            [{"text": "🕊️ مطالعه حدیث (۲ امتیاز)", "callback_data": "quest_hadith"}],
+            [{"text": "✨ قرآن در لحظه (۲ امتیاز)", "callback_data": "quest_instant_quran"}],
+            [{"text": "📊 مشاهده امتیازات", "callback_data": "show_quest_points"}],
+            [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
+        ]
+    }
+
+def best_users_keyboard(lang):
+    """کیبورد بهترین کاربران"""
+    return {
+        "inline_keyboard": [
+            [{"text": "🏅 بهترین کاربر روز", "callback_data": "show_best_daily"}],
+            [{"text": "🏆 بهترین کاربر هفته", "callback_data": "show_best_weekly"}],
+            [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
+        ]
+    }
+
 def main_menu(chat_id, lang):
-    """منوی اصلی با ۱۴ دکمه"""
+    """منوی اصلی با ۱۶ دکمه"""
     labels = safe_lang_dict(lang)["menu_labels"]
     buttons = [
         [{"text": labels["search_quran"], "callback_data": "menu_search_quran"},
@@ -927,7 +1006,9 @@ def main_menu(chat_id, lang):
          {"text": labels["about"], "callback_data": "menu_about"}],
         [{"text": labels["help"], "callback_data": "menu_help"},
          {"text": labels["reminder"], "callback_data": "menu_reminder"}],
-        [{"text": labels["share"], "callback_data": "menu_share"}]
+        [{"text": labels["share"], "callback_data": "menu_share"},
+         {"text": labels["quests"], "callback_data": "menu_quests"}],
+        [{"text": labels["best_users"], "callback_data": "menu_best_users"}]
     ]
     
     # اضافه کردن پنل ادمین برای ادمین
@@ -937,7 +1018,7 @@ def main_menu(chat_id, lang):
     return {"inline_keyboard": buttons}
 
 def admin_menu(chat_id, lang="fa"):
-    """پنل ادمین با ۸ گزینه"""
+    """پنل ادمین با ۱۰ گزینه"""
     return {
         "inline_keyboard": [
             [{"text": safe_text(lang, "admin_stats"), "callback_data": "admin_stats"}],
@@ -949,6 +1030,7 @@ def admin_menu(chat_id, lang="fa"):
             [{"text": safe_text(lang, "admin_logs"), "callback_data": "admin_logs"}],
             [{"text": safe_text(lang, "admin_system"), "callback_data": "admin_system"}],
             [{"text": safe_text(lang, "admin_achievements"), "callback_data": "admin_achievements"}],
+            [{"text": safe_text(lang, "admin_best_users"), "callback_data": "admin_best_users"}],
             [{"text": safe_text(lang, "admin_back"), "callback_data": "back_main"}]
         ]
     }
@@ -974,17 +1056,8 @@ def reminder_keyboard(lang):
         ]
     }
 
-def achievement_keyboard(lang):
-    """کیبورد نمایش دستاوردها"""
-    return {
-        "inline_keyboard": [
-            [{"text": "🏅 مشاهده دستاوردها", "callback_data": "show_achievements"}],
-            [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
-        ]
-    }
-
 # =========================================================
-# ۱۲. عضویت اجباری کانال بله (با کش)
+# ۱۳. عضویت اجباری کانال بله (با کش)
 # =========================================================
 MEMBERSHIP_CACHE = {}
 CACHE_DURATION = 300  # 5 دقیقه
@@ -1019,19 +1092,20 @@ def check_membership(chat_id):
         return False
     except Exception as e:
         logger.error(f"خطا در بررسی عضویت {chat_id}: {e}")
-        return False
+        # در صورت خطا، اجازه دسترسی بده (احتیاط)
+        return True
 
 # =========================================================
-# ۱۳. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا)
+# ۱۴. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا و رفع باگ)
 # =========================================================
 def ask_deepseek(question, lang):
-    """ارسال سوال به DeepSeek با مدیریت خطا"""
+    """ارسال سوال به DeepSeek با مدیریت کامل خطا"""
     if not FEATURES["deepseek_ai"]:
         return "🔧 این ویژگی در حال حاضر غیرفعال است."
     
-    if not DEEPSEEK_KEY:
-        logger.warning("کلید DeepSeek وجود ندارد")
-        return "🔑 کلید API هوش مصنوعی DeepSeek تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
+    if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
+        logger.warning("کلید DeepSeek نامعتبر است")
+        return "🔑 کلید API هوش مصنوعی تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
     
     language_name = {"fa": "Persian", "en": "English"}.get(lang, "Persian")
     
@@ -1051,25 +1125,32 @@ def ask_deepseek(question, lang):
     }
     
     try:
-        send_chat_action(123, "typing")  # برای نمایش تایپ (با یک chat_id ساختگی)
+        # ارسال وضعیت تایپ
+        send_chat_action(chat_id, "typing")
         
         res = requests.post(
             "https://api.deepseek.com/chat/completions",
             headers=headers,
             json=payload,
-            timeout=40
+            timeout=45
         )
+        
+        logger.info(f"DeepSeek Response Status: {res.status_code}")
         
         if res.status_code == 200:
             data = res.json()
             if "choices" in data and data["choices"]:
-                return data["choices"][0]["message"]["content"]
+                answer = data["choices"][0]["message"]["content"]
+                return answer
             else:
                 logger.error(f"پاسخ غیرمنتظره از DeepSeek: {data}")
                 return "⚠️ پاسخ دریافتی نامعتبر بود. لطفاً دوباره تلاش کنید."
         elif res.status_code == 401:
-            logger.error("کلید DeepSeek نامعتبر است")
+            logger.error("کلید DeepSeek نامعتبر است (401)")
             return "🔑 کلید API نامعتبر است. لطفاً با ادمین تماس بگیرید."
+        elif res.status_code == 429:
+            logger.error("محدودیت درخواست DeepSeek (429)")
+            return "⏳ تعداد درخواست‌ها محدود شده است. چند لحظه صبر کنید و دوباره تلاش کنید."
         else:
             logger.error(f"خطای DeepSeek: {res.status_code} - {res.text[:200]}")
             return f"⚠️ خطا در ارتباط با هوش مصنوعی (کد {res.status_code}). لطفاً بعداً تلاش کنید."
@@ -1077,12 +1158,15 @@ def ask_deepseek(question, lang):
     except requests.exceptions.Timeout:
         logger.error("Timeout در ارتباط با DeepSeek")
         return "⏳ زمان ارتباط با هوش مصنوعی به پایان رسید. لطفاً دوباره تلاش کنید."
+    except requests.exceptions.ConnectionError:
+        logger.error("خطای اتصال به DeepSeek")
+        return "🌐 خطا در اتصال به اینترنت. لطفاً اتصال خود را بررسی کنید."
     except Exception as e:
         logger.error(f"خطای DeepSeek: {e}")
         return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً بعداً تلاش کنید."
 
 # =========================================================
-# ۱۴. جستجوی قرآن و کتاب‌ها (بهبودیافته)
+# ۱۵. جستجوی قرآن و کتاب‌ها (بهبودیافته)
 # =========================================================
 def search_quran_only(q):
     """جستجو در قرآن با مدیریت خطا"""
@@ -1169,7 +1253,7 @@ def format_search_result(item, book_name="قرآن"):
     return f"📚 <b>{item.get('title', '')}</b>\n{item['text']}\n✨ {item['trans']}"
 
 # =========================================================
-# ۱۵. جستجوی مقالات علمی (با کش و پشتیبان)
+# ۱۶. جستجوی مقالات علمی (با کش و پشتیبان)
 # =========================================================
 def search_articles(query):
     """جستجوی مقالات با استفاده از OpenAlex و کش"""
@@ -1244,8 +1328,9 @@ def search_local_articles(query):
 • تأثیر قرآن بر سلامت روان
 
 💡 یا با کلمات کلیدی دیگه جستجو کن."""
+
 # =========================================================
-# ۱۶. سیستم پاداش و امتیازدهی هوشمند
+# ۱۷. سیستم پاداش و امتیازدهی هوشمند
 # =========================================================
 def calculate_reward(action, user_data):
     """محاسبه امتیاز بر اساس نوع فعالیت"""
@@ -1259,7 +1344,8 @@ def calculate_reward(action, user_data):
         "hadith_read": {"points": 2, "emoji": "🕊️"},
         "instant_quran": {"points": 2, "emoji": "✨"},
         "streak_bonus": {"points": 15, "emoji": "🔥"},
-        "feedback_high_score": {"points": 20, "emoji": "💎"}
+        "feedback_high_score": {"points": 20, "emoji": "💎"},
+        "quest_complete": {"points": 5, "emoji": "🎯"}
     }
     
     reward = rewards.get(action, {"points": 1, "emoji": "🌸"})
@@ -1336,6 +1422,10 @@ def check_achievements(chat_id, action, user_data):
         achievements.append("streak_7")
     if streak >= 30:
         achievements.append("streak_30")
+    if score >= 100:
+        achievements.append("score_100")
+    if score >= 500:
+        achievements.append("score_500")
     
     # ذخیره دستاوردها
     for achievement_key in achievements:
@@ -1381,7 +1471,225 @@ def get_user_achievements(chat_id):
         return []
 
 # =========================================================
-# ۱۷. سیستم ارسال روزانه (۳ زمان با مدیریت خطا)
+# ۱۸. سیستم کوئست‌های روزانه
+# =========================================================
+def complete_quest(chat_id, quest_id, user_data):
+    """انجام کوئست و دریافت امتیاز"""
+    try:
+        # بررسی آیا کوئست قبلاً انجام شده
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id FROM user_quests 
+            WHERE user_id = ? AND quest_id = ? 
+            AND completed_at > datetime('now', '-1 day')
+        """, (chat_id, quest_id))
+        existing = cur.fetchone()
+        
+        if existing:
+            conn.close()
+            return False, "قبلاً این کوئست را امروز انجام داده‌اید! 🌸"
+        
+        # ثبت کوئست
+        cur.execute("""
+            INSERT INTO user_quests (user_id, quest_id, completed_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        """, (chat_id, quest_id))
+        conn.commit()
+        conn.close()
+        
+        # اعمال امتیاز
+        quest = next((q for q in QUEST_ACTIONS if q["id"] == quest_id), None)
+        if quest:
+            update_user(chat_id, score=quest["points"], total_quests_completed=1)
+            update_user(chat_id, last_quest_date=datetime.now().date().isoformat())
+            return True, f"🎯 کوئست «{quest['label']}» انجام شد!\n🌟 {quest['points']} امتیاز دریافت کردی!"
+        
+        return True, "🎯 کوئست انجام شد! 🌟"
+    except Exception as e:
+        logger.error(f"خطا در انجام کوئست {quest_id}: {e}")
+        return False, "⚠️ خطا در انجام کوئست. لطفاً دوباره تلاش کنید."
+
+def get_quests_status(chat_id):
+    """دریافت وضعیت کوئست‌های روزانه"""
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT quest_id FROM user_quests 
+            WHERE user_id = ? 
+            AND completed_at > datetime('now', '-1 day')
+        """, (chat_id,))
+        completed = [row[0] for row in cur.fetchall()]
+        conn.close()
+        
+        status = []
+        for quest in QUEST_ACTIONS:
+            is_completed = quest["id"] in completed
+            status.append({
+                "id": quest["id"],
+                "label": quest["label"],
+                "points": quest["points"],
+                "desc": quest["desc"],
+                "completed": is_completed
+            })
+        return status
+    except Exception as e:
+        logger.error(f"خطا در دریافت وضعیت کوئست‌ها: {e}")
+        return []
+
+# =========================================================
+# ۱۹. سیستم بهترین کاربر روز و هفته
+# =========================================================
+def get_best_user(period_type):
+    """دریافت بهترین کاربر روز یا هفته"""
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        
+        if period_type == "daily":
+            # بهترین کاربر امروز
+            today = datetime.now().date().isoformat()
+            cur.execute("""
+                SELECT user_id, user_name, score, period_date 
+                FROM best_users 
+                WHERE period_type = 'daily' AND period_date = ?
+                ORDER BY score DESC 
+                LIMIT 1
+            """, (today,))
+        else:
+            # بهترین کاربر هفته (جمعه)
+            # پیدا کردن آخرین جمعه
+            today = datetime.now().date()
+            days_since_friday = (today.weekday() - 4) % 7
+            last_friday = today - timedelta(days=days_since_friday)
+            
+            cur.execute("""
+                SELECT user_id, user_name, score, period_date 
+                FROM best_users 
+                WHERE period_type = 'weekly'
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """)
+        
+        row = cur.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                "user_id": row[0],
+                "user_name": row[1],
+                "score": row[2],
+                "date": row[3]
+            }
+        
+        # اگر کاربری وجود نداشت، بهترین کاربر از بین کاربران واقعی
+        users = get_leaderboard(1)
+        if users:
+            return {
+                "user_id": None,
+                "user_name": users[0][0],
+                "score": users[0][1],
+                "date": datetime.now().date().isoformat()
+            }
+        
+        return None
+    except Exception as e:
+        logger.error(f"خطا در دریافت بهترین کاربر: {e}")
+        return None
+
+def save_best_user(period_type):
+    """ذخیره بهترین کاربر روز یا هفته"""
+    try:
+        # دریافت کاربر با بیشترین امتیاز امروز
+        conn = db_conn()
+        cur = conn.cursor()
+        
+        if period_type == "daily":
+            # بهترین کاربر امروز
+            cur.execute("""
+                SELECT chat_id, name, score 
+                FROM users 
+                WHERE last_active > datetime('now', '-1 day')
+                ORDER BY score DESC 
+                LIMIT 1
+            """)
+        else:
+            # بهترین کاربر هفته
+            cur.execute("""
+                SELECT chat_id, name, score 
+                FROM users 
+                WHERE last_active > datetime('now', '-7 days')
+                ORDER BY score DESC 
+                LIMIT 1
+            """)
+        
+        user = cur.fetchone()
+        
+        if user:
+            chat_id, name, score = user
+            period_date = datetime.now().date().isoformat()
+            
+            # ذخیره در دیتابیس
+            cur.execute("""
+                INSERT INTO best_users (user_id, user_name, score, period_type, period_date, created_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (chat_id, name, score, period_type, period_date))
+            
+            conn.commit()
+            
+            # ارسال پیام به کانال
+            if period_type == "daily":
+                message = f"""🏅 <b>بهترین کاربر روز</b>
+
+🌟 کاربر: {name}
+🏆 امتیاز: {score}
+📅 تاریخ: {period_date}
+
+💚 تبریک به این عزیز! 🌸
+🕌 ادامه بده تا همیشه در مسیر نور باشی."""
+            else:
+                message = f"""🏆 <b>بهترین کاربر هفته</b>
+
+🌟 کاربر: {name}
+🏆 امتیاز: {score}
+📅 هفته: {period_date}
+
+💚 تبریک ویژه به این عزیز! 🌸
+🕌 با تلاش خود الگوی دیگران باش."""
+            
+            send_message(CHANNEL_ID, message)
+            logger.info(f"بهترین کاربر {period_type} ذخیره شد: {name} با {score} امتیاز")
+        
+        conn.close()
+    except Exception as e:
+        logger.error(f"خطا در ذخیره بهترین کاربر: {e}")
+
+def schedule_best_users():
+    """برنامه‌ریزی برای ثبت بهترین کاربران"""
+    while True:
+        try:
+            now = datetime.now()
+            
+            # هر شب ساعت ۲۳:۵۹ بهترین کاربر روز
+            if now.hour == 23 and now.minute == 59 and FEATURES["best_user_daily"]:
+                save_best_user("daily")
+                logger.info("بهترین کاربر روز ثبت شد.")
+                time.sleep(60)
+            
+            # هر جمعه ساعت ۲۳:۵۹ بهترین کاربر هفته
+            if now.weekday() == 4 and now.hour == 23 and now.minute == 59 and FEATURES["best_user_weekly"]:
+                save_best_user("weekly")
+                logger.info("بهترین کاربر هفته ثبت شد.")
+                time.sleep(60)
+            
+            time.sleep(30)
+        except Exception as e:
+            logger.error(f"خطا در برنامه‌ریزی بهترین کاربران: {e}")
+            time.sleep(60)
+
+# =========================================================
+# ۲۰. سیستم ارسال روزانه (۳ زمان با مدیریت خطا)
 # =========================================================
 def send_daily_posts():
     """ارسال محتوای روزانه در ۳ زمان مشخص"""
@@ -1541,7 +1849,7 @@ def daily_scheduler():
         time.sleep(60)
 
 # =========================================================
-# ۱۸. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
+# ۲۱. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
 # =========================================================
 def handle_state_message(chat_id, text, user):
     """پردازش پیام‌های وضعیت‌دار کاربر"""
@@ -1551,7 +1859,6 @@ def handle_state_message(chat_id, text, user):
 
     # وضعیت هوش مصنوعی
     if state == "waiting_ai":
-        send_chat_action(chat_id, "typing")
         send_message(chat_id, safe_text(lang, "ai_wait"))
         answer = ask_deepseek(text, lang)
         send_message(chat_id, f"🤖 {answer}", main_menu(chat_id, lang))
@@ -1559,20 +1866,32 @@ def handle_state_message(chat_id, text, user):
         update_user_score(chat_id, "ai_question", user)
         return True
 
-    # وضعیت پیام به ادمین
+    # وضعیت پیام به ادمین (رفع باگ)
     if state == "waiting_admin_msg":
-        send_message(
-            ADMIN_ID,
-            f"""📩 <b>پیام جدید از کاربر</b>
+        try:
+            # ارسال به ادمین با فرمت صحیح
+            admin_text = f"""📩 <b>پیام جدید از کاربر</b>
 
 👤 نام: {name}
 🆔 chat_id: {chat_id}
 📝 امتیاز: {user.get('score', 0)}
+
 💬 متن:
 {text}"""
-        )
-        send_message(chat_id, safe_text(lang, "admin_msg_sent"), main_menu(chat_id, lang))
-        update_user(chat_id, state="none", score=1)
+            
+            # ارسال با retry
+            result = send_message_with_retry(ADMIN_ID, admin_text)
+            if result and result.get("ok"):
+                send_message(chat_id, safe_text(lang, "admin_msg_sent"), main_menu(chat_id, lang))
+                logger.info(f"پیام کاربر {chat_id} به ادمین ارسال شد.")
+            else:
+                send_message(chat_id, "⚠️ متأسفانه پیام شما ارسال نشد. لطفاً دوباره تلاش کنید.", main_menu(chat_id, lang))
+                logger.error(f"ارسال پیام به ادمین ناموفق: {result}")
+        except Exception as e:
+            logger.error(f"خطا در ارسال پیام به ادمین: {e}")
+            send_message(chat_id, "⚠️ خطا در ارسال پیام. لطفاً دوباره تلاش کنید.", main_menu(chat_id, lang))
+        
+        update_user(chat_id, state="none")
         return True
 
     # وضعیت جستجوی قرآن
@@ -1683,7 +2002,7 @@ def handle_state_message(chat_id, text, user):
             send_message(chat_id, safe_text(lang, "feedback_score_msg", score=score), main_menu(chat_id, lang))
             
             # ارسال به ادمین
-            send_message(ADMIN_ID, f"""📩 <b>پیشنهاد جدید</b>
+            send_message_with_retry(ADMIN_ID, f"""📩 <b>پیشنهاد جدید</b>
 
 👤 {name} (امتیاز: {user.get('score', 0)})
 📝 {text}
@@ -1691,7 +2010,7 @@ def handle_state_message(chat_id, text, user):
 🏷️ دسته: {category}""")
         else:
             send_message(chat_id, safe_text(lang, "feedback_no_score"), main_menu(chat_id, lang))
-            send_message(ADMIN_ID, f"📩 پیشنهاد جدید:\n👤 {name}\n📝 {text}\n⭐ امتیاز: {score}")
+            send_message_with_retry(ADMIN_ID, f"📩 پیشنهاد جدید:\n👤 {name}\n📝 {text}\n⭐ امتیاز: {score}")
         
         update_user_score(chat_id, "feedback", user)
         return True
@@ -1764,7 +2083,7 @@ def handle_state_message(chat_id, text, user):
     return False
 
 # =========================================================
-# ۱۹. توابع کمکی (توسعه‌یافته)
+# ۲۲. توابع کمکی (توسعه‌یافته)
 # =========================================================
 def get_user_state(chat_id):
     """دریافت وضعیت کاربر"""
@@ -1801,6 +2120,8 @@ def get_system_stats():
         stats["total_feedbacks"] = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM feedbacks WHERE status='pending'")
         stats["pending_feedbacks"] = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM user_quests")
+        stats["total_quests"] = cur.fetchone()[0]
         conn.close()
     except Exception as e:
         logger.error(f"خطا در دریافت آمار: {e}")
@@ -1827,13 +2148,16 @@ def format_system_stats():
 📩 کل بازخوردها: {stats['total_feedbacks']}
 ⏳ در انتظار بررسی: {stats['pending_feedbacks']}
 
+🎯 <b>کوئست‌ها:</b>
+✅ کل کوئست‌های انجام شده: {stats.get('total_quests', 0)}
+
 ⚙️ <b>ویژگی‌های فعال:</b>
 {', '.join([k for k, v in stats['features_status'].items() if v])}
 
 📅 آخرین به‌روزرسانی: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
 
 # =========================================================
-# ۲۰. مسیرهای تست و سلامت (توسعه‌یافته)
+# ۲۳. مسیرهای تست و سلامت (توسعه‌یافته)
 # =========================================================
 @app.route("/", methods=["GET", "HEAD"])
 def health():
@@ -1841,7 +2165,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "4.0",
+        "version": "5.0",
         "time": datetime.now().isoformat(),
         "quran_records": len(QURAN_DATA),
         "nahj_records": len(NAHJ_DATA),
@@ -1849,7 +2173,7 @@ def health():
         "total_users": get_user_count(),
         "active_users_7d": get_active_users(7),
         "features": FEATURES,
-        "deepseek_configured": bool(DEEPSEEK_KEY)
+        "deepseek_configured": bool(DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 10)
     }), 200
 
 @app.route("/webhook", methods=["GET", "HEAD"])
@@ -1862,7 +2186,7 @@ def webhook_check():
     }), 200
 
 # =========================================================
-# ۲۱. وب هوک و مدیریت یکپارچه درخواست‌ها (توسعه‌یافته)
+# ۲۴. وب هوک و مدیریت یکپارچه درخواست‌ها (توسعه‌یافته)
 # =========================================================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook_token():
@@ -1946,6 +2270,7 @@ def webhook_token():
 • حدیث و ذکر روزانه 🕊️
 • قرآن در لحظه با ترجمه ✨
 • پیشنهاد و انتقاد با امتیاز ⭐
+• کوئست‌های روزانه 🎯
 
 👇 از منوی زیبای زیر استفاده کن:"""
             
@@ -2067,6 +2392,75 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
+            # کوئست‌های روزانه
+            # ===========================
+            if cb_data.startswith("quest_"):
+                quest_id = cb_data.replace("quest_", "")
+                
+                if quest_id in ["quran_search", "daily_visit", "feedback", "hadith", "instant_quran"]:
+                    # انجام کوئست
+                    success, message = complete_quest(chat_id, quest_id, user)
+                    send_message(chat_id, message, quest_keyboard(lang) if success else main_menu(chat_id, lang))
+                    
+                    if success:
+                        # به‌روزرسانی امتیاز
+                        update_user_score(chat_id, "quest_complete", user)
+                elif quest_id == "show_quest_points":
+                    # نمایش وضعیت کوئست‌ها
+                    status = get_quests_status(chat_id)
+                    msg = "🎯 <b>وضعیت کوئست‌های روزانه</b>\n\n"
+                    
+                    for q in status:
+                        icon = "✅" if q["completed"] else "⬜"
+                        msg += f"{icon} {q['label']} — {q['points']} امتیاز\n"
+                        if not q["completed"]:
+                            msg += f"   💡 {q['desc']}\n"
+                        msg += "\n"
+                    
+                    msg += f"\n📊 کل امتیازات کسب شده امروز: {user.get('score', 0)}"
+                    send_message(chat_id, msg, quest_keyboard(lang))
+                else:
+                    send_message(chat_id, "🔧 این کوئست در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
+                return "OK", 200
+
+            # ===========================
+            # بهترین کاربران
+            # ===========================
+            if cb_data == "show_best_daily":
+                best = get_best_user("daily")
+                if best:
+                    msg = f"""🏅 <b>بهترین کاربر روز</b>
+
+🌟 نام: {best['user_name']}
+🏆 امتیاز: {best['score']}
+📅 تاریخ: {best['date']}
+
+💚 تبریک به این عزیز! 🌸
+🕌 با تلاش خود الگوی دیگران باش."""
+                else:
+                    msg = "🏅 هنوز بهترین کاربر روز مشخص نشده است.\n\n🌟 اولین نفر باش و با فعالیت‌هایت در لیگ قرآنی بدرخش!"
+                
+                send_message(chat_id, msg, best_users_keyboard(lang))
+                return "OK", 200
+
+            if cb_data == "show_best_weekly":
+                best = get_best_user("weekly")
+                if best:
+                    msg = f"""🏆 <b>بهترین کاربر هفته</b>
+
+🌟 نام: {best['user_name']}
+🏆 امتیاز: {best['score']}
+📅 هفته: {best['date']}
+
+💚 تبریک ویژه به این عزیز! 🌸
+🕌 با تلاش خود الگوی دیگران باش."""
+                else:
+                    msg = "🏆 هنوز بهترین کاربر هفته مشخص نشده است.\n\n🌟 با تلاش مستمر، می‌توانی بهترین هفته باشی!"
+                
+                send_message(chat_id, msg, best_users_keyboard(lang))
+                return "OK", 200
+
+            # ===========================
             # پنل ادمین
             # ===========================
             if cb_data == "admin_panel":
@@ -2124,6 +2518,9 @@ def webhook_token():
 • آیات قرآن: {stats['quran_count']}
 • فرازهای نهج‌البلاغه: {stats['nahj_count']}
 • دعاهای صحیفه سجادیه: {stats['sahifeh_count']}
+
+🎯 <b>کوئست‌ها:</b>
+• کل کوئست‌های انجام شده: {stats.get('total_quests', 0)}
 
 📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
                 send_message(chat_id, stats_text, admin_menu(chat_id, lang))
@@ -2293,28 +2690,32 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
-            # نمایش دستاوردها
+            # مدیریت بهترین کاربران
             # ===========================
-            if cb_data == "show_achievements":
-                achievements = get_user_achievements(chat_id)
-                if achievements:
-                    msg = "🏅 <b>دستاوردهای شما:</b>\n\n"
-                    for achievement in achievements:
-                        msg += f"{achievement['name']} 💰 {achievement['points']} امتیاز\n"
-                    msg += f"\n📅 تاریخ دریافت: {achievement['unlocked_at'] if achievements else ''}"
-                else:
-                    msg = """🏅 <b>هنوز دستاوردی کسب نکرده‌اید!</b>
-
-💡 برای کسب دستاوردها:
-• جستجو در قرآن 📖
-• بازدید روزانه 🌅
-• ارسال پیشنهاد 📝
-• مطالعه حدیث 🕊️
-• کسب امتیاز بالا 🌟
-
-🌟 هر چه بیشتر استفاده کنی، دستاوردهای بیشتری دریافت می‌کنی!"""
+            if cb_data == "admin_best_users":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
                 
-                send_message(chat_id, msg, main_menu(chat_id, lang))
+                msg = "🏆 <b>مدیریت بهترین کاربران</b>\n\n"
+                
+                # بهترین کاربر روز
+                best_daily = get_best_user("daily")
+                if best_daily:
+                    msg += f"🏅 بهترین کاربر روز:\n{best_daily['user_name']} — {best_daily['score']} امتیاز\n\n"
+                else:
+                    msg += "🏅 بهترین کاربر روز: هنوز مشخص نشده\n\n"
+                
+                # بهترین کاربر هفته
+                best_weekly = get_best_user("weekly")
+                if best_weekly:
+                    msg += f"🏆 بهترین کاربر هفته:\n{best_weekly['user_name']} — {best_weekly['score']} امتیاز\n\n"
+                else:
+                    msg += "🏆 بهترین کاربر هفته: هنوز مشخص نشده\n\n"
+                
+                msg += "📌 این عناوین هر روز ساعت ۲۳:۵۹ و هر جمعه ساعت ۲۳:۵۹ به‌روزرسانی می‌شوند."
+                
+                send_message(chat_id, msg, admin_menu(chat_id, lang))
                 return "OK", 200
 
             # ===========================
@@ -2330,6 +2731,7 @@ def webhook_token():
 🤖 هوش مصنوعی پاسخ‌گو
 🕊️ حدیث و ذکر روزانه
 🏆 لیگ قرآنی
+🎯 کوئست‌های روزانه
 
 💚 با ما همراه شو:
 https://t.me/{bot_username}"""
@@ -2434,6 +2836,14 @@ https://t.me/{bot_username}"""
 🏆 <b>لیگ قرآنی:</b>
 • رقابت با سایر کاربران
 • کسب امتیاز از طریق فعالیت‌ها
+
+🎯 <b>کوئست‌های روزانه:</b>
+• انجام کوئست‌های مختلف
+• کسب امتیاز اضافی
+
+🏅 <b>بهترین کاربران:</b>
+• بهترین کاربر روز (هر شب ساعت ۲۳:۵۹)
+• بهترین کاربر هفته (هر جمعه)
 
 📝 <b>پیشنهاد/انتقاد:</b>
 • ارسال پیشنهادات سازنده
@@ -2541,7 +2951,8 @@ https://t.me/{bot_username}"""
                             feedback_score=latest_user["feedback_score"],
                             join_date=latest_user["join_date"],
                             title=title,
-                            visits=latest_user["total_visits"]
+                            visits=latest_user["total_visits"],
+                            quests=latest_user["total_quests_completed"]
                         ),
                         main_menu(chat_id, lang)
                     )
@@ -2556,16 +2967,19 @@ https://t.me/{bot_username}"""
                         leaderboard = ""
                         medals = ["🥇", "🥈", "🥉"]
                         for i, user_data in enumerate(top_users, 1):
-                            if len(user_data) >= 3:
+                            if len(user_data) >= 4:
+                                name, score, visits, streak = user_data[0], user_data[1], user_data[2], user_data[3]
+                            elif len(user_data) >= 3:
                                 name, score, visits = user_data[0], user_data[1], user_data[2]
+                                streak = 0
                             else:
                                 name, score = user_data[0], user_data[1]
-                                visits = 0
+                                visits, streak = 0, 0
                             
                             if i <= 3:
-                                leaderboard += f"{medals[i-1]} {name} — {score} امتیاز (🎯 {visits} بازدید)\n"
+                                leaderboard += f"{medals[i-1]} {name} — {score} امتیاز (🔥 {streak} روز)\n"
                             else:
-                                leaderboard += f"{i}. {name} — {score} امتیاز (🎯 {visits} بازدید)\n"
+                                leaderboard += f"{i}. {name} — {score} امتیاز (🔥 {streak} روز)\n"
                     else:
                         leaderboard = "🌟 <b>لیگ قرآنی هنوز شروع نشده!</b>\n\n💡 اولین نفر باش و با استفاده از ربات امتیاز جمع کن:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️"
                     
@@ -2588,7 +3002,8 @@ https://t.me/{bot_username}"""
                             search_count=latest_user["search_count"],
                             streak=latest_user["streak"],
                             feedback_score=latest_user["feedback_score"],
-                            title=title
+                            title=title,
+                            quests=latest_user["total_quests_completed"]
                         ),
                         main_menu(chat_id, lang)
                     )
@@ -2612,9 +3027,11 @@ https://t.me/{bot_username}"""
                 elif action == "about":
                     send_message(chat_id, safe_text(lang, "about"), main_menu(chat_id, lang))
                 
-                elif action == "help":
-                    # اینجا با منوی راهنما که قبلاً در بخش callback_data پیاده‌سازی شد
-                    pass
+                elif action == "quests":
+                    send_message(chat_id, "🎯 <b>کوئست‌های روزانه</b>\n\nبا انجام هر کوئست، امتیاز بگیر و در لیگ قرآنی بدرخش! 🌟", quest_keyboard(lang))
+                
+                elif action == "best_users":
+                    send_message(chat_id, "🏅 <b>بهترین کاربران</b>\n\nهر شب ساعت ۲۳:۵۹ بهترین کاربر روز\nهر جمعه ساعت ۲۳:۵۹ بهترین کاربر هفته\n\nبرای مشاهده انتخاب کن:", best_users_keyboard(lang))
                 
                 else:
                     send_message(chat_id, safe_text(lang, "under_construction"), main_menu(chat_id, lang))
@@ -2631,7 +3048,7 @@ https://t.me/{bot_username}"""
         return "OK", 200
 
 # =========================================================
-# ۲۲. اجرای استارتاپ و سرور وب (توسعه‌یافته)
+# ۲۵. اجرای استارتاپ و سرور وب (توسعه‌یافته)
 # =========================================================
 def startup():
     """راه‌اندازی اولیه ربات با تمام قابلیت‌ها"""
@@ -2647,11 +3064,11 @@ def startup():
         logger.info("✅ کتابخانه بارگذاری شد.")
         
         # بررسی کلید DeepSeek
-        if DEEPSEEK_KEY and DEEPSEEK_KEY.startswith("sk-"):
-            logger.info("✅ کلید DeepSeek معتبر است.")
+        if DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 10:
+            logger.info("✅ کلید DeepSeek تنظیم شده است.")
             FEATURES["deepseek_ai"] = True
         else:
-            logger.warning("⚠️ کلید DeepSeek نامعتبر است یا وجود ندارد.")
+            logger.warning("⚠️ کلید DeepSeek وجود ندارد یا نامعتبر است.")
             FEATURES["deepseek_ai"] = False
         
         # راه‌اندازی اسکجولر روزانه
@@ -2661,6 +3078,12 @@ def startup():
             logger.info("✅ اسکژولر روزانه (۳ زمان) راه‌اندازی شد.")
         else:
             logger.info("ℹ️ اسکژولر روزانه غیرفعال است.")
+        
+        # راه‌اندازی اسکجولر بهترین کاربران
+        if FEATURES["best_user_daily"] or FEATURES["best_user_weekly"]:
+            best_user_thread = threading.Thread(target=schedule_best_users, daemon=True)
+            best_user_thread.start()
+            logger.info("✅ اسکژولر بهترین کاربران راه‌اندازی شد.")
         
         # راه‌اندازی تمیزکاری کش
         def cache_cleaner():
