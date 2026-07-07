@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۶.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۷.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
-با سیستم کد دعوت و امتیازدهی ویژه
+با سیستم دعوت کامل، جستجوی هوشمند، تفسیر و پشتیبانی از زبان عربی
 """
 
 import os
@@ -88,66 +88,64 @@ FEATURES = {
     "statistics_advanced": True,
     "best_user_daily": True,
     "best_user_weekly": True,
-    "referral_system": True
+    "referral_system": True,
+    "arabic_language": True
 }
 
 # =========================================================
-# ۳. داده‌های اولیه و نمونه (توسعه‌یافته)
+# ۳. داده‌های اولیه و نمونه (توسعه‌یافته با قرآن کامل)
 # =========================================================
 DEFAULT_QURAN_SEED = [
-    {"index": 1, "surah": "حمد", "verse": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "trans": "به نام خداوند بخشنده مهربان"},
-    {"index": 2, "surah": "حمد", "verse": 2, "text": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", "trans": "ستایش مخصوص خداوندی است که پروردگار جهانیان است"},
-    {"index": 3, "surah": "حمد", "verse": 3, "text": "الرَّحْمَٰنِ الرَّحِيمِ", "trans": "بخشنده و مهربان است"},
-    {"index": 4, "surah": "حمد", "verse": 4, "text": "مَالِكِ يَوْمِ الدِّينِ", "trans": "مالک روز جزاست"},
-    {"index": 5, "surah": "حمد", "verse": 5, "text": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", "trans": "تنها تو را می‌پرستیم و تنها از تو یاری می‌جوییم"},
-    {"index": 6, "surah": "بقره", "verse": 153, "text": "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ", "trans": "ای کسانی که ایمان آورده‌اید، از صبر و نماز یاری جویید"},
-    {"index": 7, "surah": "بقره", "verse": 255, "text": "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", "trans": "خداوند است که هیچ معبودی جز او نیست؛ زنده و پایدار است"},
-    {"index": 8, "surah": "بقره", "verse": 286, "text": "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا", "trans": "خداوند هیچ‌کس را جز به اندازه توانش تکلیف نمی‌کند"},
-    {"index": 9, "surah": "آل عمران", "verse": 139, "text": "وَلَا تَهِنُوا وَلَا تَحْزَنُوا وَأَنْتُمُ الْأَعْلَوْنَ إِنْ كُنْتُمْ مُؤْمِنِينَ", "trans": "سست نشوید و غمگین نگردید، که اگر مؤمن باشید شما برترید"},
-    {"index": 10, "surah": "رعد", "verse": 28, "text": "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", "trans": "آگاه باشید که با یاد خدا دل‌ها آرام می‌گیرد"},
-    {"index": 11, "surah": "شرح", "verse": 6, "text": "إِنَّ مَعَ الْعُسْرِ يُسْرًا", "trans": "همانا با سختی، آسانی است"},
-    {"index": 12, "surah": "طلاق", "verse": 3, "text": "وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ", "trans": "و هر کس بر خدا توکل کند، خدا او را کافی است"},
-    {"index": 13, "surah": "زمر", "verse": 53, "text": "لَا تَقْنَطُوا مِنْ رَحْمَةِ اللَّهِ", "trans": "از رحمت خدا نومید نشوید"},
-    {"index": 14, "surah": "ابراهیم", "verse": 7, "text": "لَئِنْ شَكَرْتُمْ لَأَزِيدَنَّكُمْ", "trans": "اگر شکر کنید، قطعاً شما را می‌افزایم"},
-    {"index": 15, "surah": "نور", "verse": 35, "text": "اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ", "trans": "خداوند نور آسمان‌ها و زمین است"},
+    {"index": 1, "surah": "حمد", "verse": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "trans": "به نام خداوند بخشنده مهربان", "interpretation": "شروع هر کار با نام خدا، نشانه توکل و ایمان است. برای پزشکان و دانشجویان علوم پزشکی، این آیه یادآور شروع هر اقدام درمانی با نام خداوند مهربان است."},
+    {"index": 2, "surah": "حمد", "verse": 2, "text": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", "trans": "ستایش مخصوص خداوندی است که پروردگار جهانیان است", "interpretation": "تمام هستی و از جمله علم پزشکی، نشانه‌های پروردگار جهانیان است. هر کشف علمی، ستایشی بر عظمت خالق است."},
+    {"index": 3, "surah": "حمد", "verse": 3, "text": "الرَّحْمَٰنِ الرَّحِيمِ", "trans": "بخشنده و مهربان است", "interpretation": "رحمانیت و رحیمیت خدا، الگوی پزشکان در مهربانی با بیماران است. همان‌گونه که خداوند به بندگانش مهربان است، پزشک نیز باید نسبت به بیماران مهربان باشد."},
+    {"index": 4, "surah": "حمد", "verse": 4, "text": "مَالِكِ يَوْمِ الدِّينِ", "trans": "مالک روز جزاست", "interpretation": "روز جزا یادآور مسئولیت پزشکان در قبال جان انسان‌هاست. هر درمان و هر تصمیم پزشکی، در پیشگاه خداوند حساب دارد."},
+    {"index": 5, "surah": "حمد", "verse": 5, "text": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", "trans": "تنها تو را می‌پرستیم و تنها از تو یاری می‌جوییم", "interpretation": "پزشکان و پرستاران در درمان بیماران، تنها به خداوند توکل کنند و از او یاری بجویند. علم پزشکی بدون یاری الهی، کامل نمی‌شود."},
+    {"index": 6, "surah": "بقره", "verse": 153, "text": "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ", "trans": "ای کسانی که ایمان آورده‌اید، از صبر و نماز یاری جویید", "interpretation": "صبر در برابر سختی‌های درمان و نماز برای آرامش قلب، دو ابزار قدرتمند برای کادر درمان است."},
+    {"index": 7, "surah": "بقره", "verse": 255, "text": "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", "trans": "خداوند است که هیچ معبودی جز او نیست؛ زنده و پایدار است", "interpretation": "خداوند حی و قیوم، منشأ حیات و بقای تمام موجودات است. پزشکان با این آیه، عظمت خالق حیات را درمی‌یابند."},
+    {"index": 8, "surah": "بقره", "verse": 286, "text": "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا", "trans": "خداوند هیچ‌کس را جز به اندازه توانش تکلیف نمی‌کند", "interpretation": "هیچ پزشک و پرستاری بیش از توانش مسئول نیست. این آیه برای کادر درمان که با فشار کاری روبرو هستند، آرامش‌بخش است."},
+    {"index": 9, "surah": "آل عمران", "verse": 139, "text": "وَلَا تَهِنُوا وَلَا تَحْزَنُوا وَأَنْتُمُ الْأَعْلَوْنَ إِنْ كُنْتُمْ مُؤْمِنِينَ", "trans": "سست نشوید و غمگین نگردید، که اگر مؤمن باشید شما برترید", "interpretation": "کادر درمان با ایمان به خدا، هرگز سست و غمگین نشوند. برتری مؤمنان در آرامش و امیدواری است."},
+    {"index": 10, "surah": "رعد", "verse": 28, "text": "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", "trans": "آگاه باشید که با یاد خدا دل‌ها آرام می‌گیرد", "interpretation": "پزشکان و پرستاران در شرایط استرس‌زا، با یاد خدا آرامش می‌یابند. این آیه نسخه شفابخش برای دل‌های پریشان است."},
+    {"index": 11, "surah": "شرح", "verse": 6, "text": "إِنَّ مَعَ الْعُسْرِ يُسْرًا", "trans": "همانا با سختی، آسانی است", "interpretation": "پس از هر بیماری و سختی، بهبودی و آسانی است. این آیه امیدبخش برای بیماران و کادر درمان است."},
+    {"index": 12, "surah": "طلاق", "verse": 3, "text": "وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ", "trans": "و هر کس بر خدا توکل کند، خدا او را کافی است", "interpretation": "پزشکان و پرستاران که برای درمان بیماران تلاش می‌کنند، توکل بر خدا داشته باشند که او کافی است."},
+    {"index": 13, "surah": "زمر", "verse": 53, "text": "لَا تَقْنَطُوا مِنْ رَحْمَةِ اللَّهِ", "trans": "از رحمت خدا نومید نشوید", "interpretation": "بیماران و کادر درمان هرگز از رحمت خدا ناامید نشوند. علم پزشکی نیز جلوه‌ای از رحمت الهی است."},
+    {"index": 14, "surah": "ابراهیم", "verse": 7, "text": "لَئِنْ شَكَرْتُمْ لَأَزِيدَنَّكُمْ", "trans": "اگر شکر کنید، قطعاً شما را می‌افزایم", "interpretation": "شکرگزاری پزشکان و پرستاران برای علم و توانایی، باعث افزایش علم و برکت در کارشان می‌شود."},
+    {"index": 15, "surah": "نور", "verse": 35, "text": "اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ", "trans": "خداوند نور آسمان‌ها و زمین است", "interpretation": "نور علم و معرفت، از خداوند سرچشمه می‌گیرد. هرچه پزشکان به علم الهی نزدیک‌تر شوند، درمانشان مؤثرتر خواهد بود."},
 ]
 
 DEFAULT_NAHJ_SEED = [
-    {"index": 1, "type": "خطبه", "number": 1, "text": "الْحَمْدُ لِلَّهِ الَّذِی لَا یَبْلُغُ مِدْحَتَهُ الْقَائِلُونَ", "trans": "ستایش خدایی را که سخنوران در ستودن او فرومانند"},
-    {"index": 2, "type": "حکمت", "number": 1, "text": "كُنْ فِي الْفِتْنَةِ كَابْنِ اللَّبُونِ لاَ ظَهْرٌ فَيُرْكَبَ، وَلاَ ضَرْعٌ فَيُحْلَبَ", "trans": "در فتنه‌ها چونان شتر دو ساله باش، نه پشتی دارد که سوار شوند و نه پستانی که بدوشند"},
-    {"index": 3, "type": "نامه", "number": 31, "text": "يَا بُنَيَّ اجْعَلْ نَفْسَكَ مِيزَاناً فِيما بَيْنَكَ وَبَيْنَ غَيْرِكَ", "trans": "پسرم، خویشتن را میان خود و دیگران ترازویی قرار ده"},
+    {"index": 1, "type": "خطبه", "number": 1, "text": "الْحَمْدُ لِلَّهِ الَّذِی لَا یَبْلُغُ مِدْحَتَهُ الْقَائِلُونَ", "trans": "ستایش خدایی را که سخنوران در ستودن او فرومانند", "interpretation": "عظمت خداوند فراتر از توصیف است. دانشمندان علوم پزشکی هرچه بیشتر به اسرار خلقت پی می‌برند، به عظمت خالق بیشتر پی می‌برند."},
+    {"index": 2, "type": "حکمت", "number": 1, "text": "كُنْ فِي الْفِتْنَةِ كَابْنِ اللَّبُونِ لاَ ظَهْرٌ فَيُرْكَبَ، وَلاَ ضَرْعٌ فَيُحْلَبَ", "trans": "در فتنه‌ها چونان شتر دو ساله باش، نه پشتی دارد که سوار شوند و نه پستانی که بدوشند", "interpretation": "در بحران‌های پزشکی و اپیدمی‌ها، متواضع باش و خود را از حاشیه‌ها دور نگهدار."},
+    {"index": 3, "type": "نامه", "number": 31, "text": "يَا بُنَيَّ اجْعَلْ نَفْسَكَ مِيزَاناً فِيما بَيْنَكَ وَبَيْنَ غَيْرِكَ", "trans": "پسرم، خویشتن را میان خود و دیگران ترازویی قرار ده", "interpretation": "پزشکان باید در برخورد با بیماران، عدالت را رعایت کنند و خود را معیار نیکی قرار دهند."},
 ]
 
 DEFAULT_SAHIFEH_SEED = [
-    {"index": 1, "dua": 1, "title": "در ستایش پروردگار", "text": "الْحَمْدُ لِلَّهِ الْأَوَّلِ بلا أَوَّلٍ كَانَ قَبْلَهُ", "trans": "ستایش خدای را که نخستین است و پیش از او نخستینی نبوده"},
-    {"index": 2, "dua": 20, "title": "دعای مکارم الاخلاق", "text": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَ آلِهِ ، وَ بَلِّغْ بِإِیمَانِی أَکْمَلَ الْإِیمَانِ", "trans": "بار خدایا بر محمد و آلش درود فرست، و ایمان مرا به کامل‌ترین مرتبه ایمان برسان"},
+    {"index": 1, "dua": 1, "title": "در ستایش پروردگار", "text": "الْحَمْدُ لِلَّهِ الْأَوَّلِ بلا أَوَّلٍ كَانَ قَبْلَهُ", "trans": "ستایش خدای را که نخستین است و پیش از او نخستینی نبوده", "interpretation": "خداوند آغاز همه چیز است. دانشمندان با شناخت هرچه بیشتر خلقت، به عظمت خالق پی می‌برند."},
+    {"index": 2, "dua": 20, "title": "دعای مکارم الاخلاق", "text": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَ آلِهِ ، وَ بَلِّغْ بِإِیمَانِی أَکْمَلَ الْإِیمَانِ", "trans": "بار خدایا بر محمد و آلش درود فرست، و ایمان مرا به کامل‌ترین مرتبه ایمان برسان", "interpretation": "ایمان کامل، آرامش قلبی و قدرت معنوی به پزشکان و پرستاران در مسیر درمان می‌دهد."},
 ]
 
 # =========================================================
-# ۴. احادیث و ذکر روزانه (توسعه‌یافته)
+# ۴. داده‌های کامل قرآن (برای بارگذاری کامل)
+# =========================================================
+FULL_QURAN_URL = "https://raw.githubusercontent.com/risq/quran-json/master/quran.json"
+FULL_NAHJ_URL = "https://raw.githubusercontent.com/amirashabani/Nahjolbalagheh/main/nahj.json"
+FULL_SAHIFEH_URL = "https://raw.githubusercontent.com/amirashabani/Sahifeh-Sajjadieh/main/sahifeh.json"
+
+# =========================================================
+# ۵. احادیث و ذکر روزانه (توسعه‌یافته)
 # =========================================================
 HADITHS_WITH_DHIKR = [
-    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش"},
-    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)", "category": "تفکر"},
-    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)", "category": "تلاوت"},
-    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)", "category": "نورانی‌سازی"},
-    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)", "category": "تلاوت"},
-    {"hadith": "مؤمنان در محبت و مهربانی مانند یک پیکرند. 💚", "dhikr": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ (۱۰۰ بار)", "category": "اخوت"},
-    {"hadith": "نیکی را به نیکی پاداش نیست، بلکه به احسان است. 🌟", "dhikr": "سُبْحَانَ اللَّهِ الْعَظِیمِ (۱۰۰ بار)", "category": "اخلاق"},
-]
-
-INSTANT_QURAN_FULL = [
-    {"surah": "الرحمن", "verse": 60, "arabic": "هَلْ جَزَاءُ الْإِحْسَانِ إِلَّا الْإِحْسَانُ", "trans": "آیا پاداش نیکی جز نیکی است؟"},
-    {"surah": "الضحی", "verse": 1, "arabic": "وَالضُّحَىٰ", "trans": "سوگند به روشنایی روز"},
-    {"surah": "الشرح", "verse": 5, "arabic": "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا", "trans": "پس یقیناً با دشواری آسانی است"},
-    {"surah": "التين", "verse": 1, "arabic": "وَالتِّينِ وَالزَّيْتُونِ", "trans": "سوگند به انجیر و زیتون"},
-    {"surah": "العلق", "verse": 1, "arabic": "اقْرَأْ بِاسْمِ رَبِّكَ الَّذِي خَلَقَ", "trans": "بخوان به نام پروردگارت که آفرید"},
-    {"surah": "القدر", "verse": 1, "arabic": "إِنَّا أَنزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ", "trans": "ما آن را در شب قدر نازل کردیم"},
-    {"surah": "البقره", "verse": 286, "arabic": "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا", "trans": "خداوند هیچ‌کس را جز به اندازه توانش تکلیف نمی‌کند"},
+    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش", "interpretation": "پزشکان و اساتید دانشگاه، با آموزش علم و دانش به دیگران، در زمره بهترین‌ها قرار می‌گیرند."},
+    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)", "category": "تفکر", "interpretation": "تفکر در آیات قرآن، قلب دانشجویان و پزشکان را آرامش می‌بخشد و بهار دل‌هایشان است."},
+    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)", "category": "تلاوت", "interpretation": "پزشکان با تلاوت روزانه قرآن، یاد خدا را در قلب خود زنده نگه می‌دارند و با قدرت معنوی بیشتری به درمان می‌پردازند."},
+    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)", "category": "نورانی‌سازی", "interpretation": "اتاق عمل و بخش‌های بیمارستان، با تلاوت قرآن نورانی می‌شود و آرامش خاصی به بیماران می‌دهد."},
+    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)", "category": "تلاوت", "interpretation": "پزشکانی که در مسیر درمان بیماران، قرآن می‌خوانند، اجر شهید دارند."},
+    {"hadith": "مؤمنان در محبت و مهربانی مانند یک پیکرند. 💚", "dhikr": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ (۱۰۰ بار)", "category": "اخوت", "interpretation": "کادر درمان با محبت و مهربانی به بیماران، مانند یک پیکر واحد عمل می‌کنند."},
+    {"hadith": "نیکی را به نیکی پاداش نیست، بلکه به احسان است. 🌟", "dhikr": "سُبْحَانَ اللَّهِ الْعَظِیمِ (۱۰۰ بار)", "category": "اخلاق", "interpretation": "پزشکان و پرستاران با احسان و نیکی به بیماران، پاداشی بزرگ از خداوند دریافت می‌کنند."},
 ]
 
 # =========================================================
-# ۵. داده‌های مقالات محلی (برای زمان عدم دسترسی به API)
+# ۶. داده‌های مقالات محلی (برای زمان عدم دسترسی به API)
 # =========================================================
 LOCAL_ARTICLES = [
     {"title": "تفسیر سوره حمد", "summary": "بررسی جامع سوره حمد، بزرگترین سوره قرآن", "category": "تفسیر"},
@@ -155,10 +153,12 @@ LOCAL_ARTICLES = [
     {"title": "تأثیر قرآن بر سلامت روان", "summary": "مطالعه تأثیر تلاوت قرآن بر کاهش استرس و اضطراب", "category": "پزشکی"},
     {"title": "زنان در قرآن", "summary": "بررسی جایگاه و حقوق زنان در آیات قرآن", "category": "اجتماعی"},
     {"title": "علم و دانش در قرآن", "summary": "نقش علم و تفکر در آیات الهی", "category": "علمی"},
+    {"title": "اخلاق پزشکی در اسلام", "summary": "بررسی اصول اخلاق پزشکی از منظر قرآن و حدیث", "category": "پزشکی"},
+    {"title": "طب اسلامی و قرآن", "summary": "نقش قرآن در توسعه طب اسلامی", "category": "پزشکی"},
 ]
 
 # =========================================================
-# ۶. جوایز و عناوین کاربران (سیستم تشویقی)
+# ۷. جوایز و عناوین کاربران (سیستم تشویقی)
 # =========================================================
 USER_TITLES = {
     0: "🌱 تازه‌کار قرآنی",
@@ -187,7 +187,7 @@ ACHIEVEMENTS = {
 }
 
 # =========================================================
-# ۷. دکمه‌های جذاب برای کسب امتیاز
+# ۸. دکمه‌های جذاب برای کسب امتیاز
 # =========================================================
 QUEST_ACTIONS = [
     {"id": "quran_search", "label": "📖 جستجوی قرآن", "points": 3, "desc": "هر بار جستجو در قرآن"},
@@ -201,7 +201,7 @@ QUEST_ACTIONS = [
 ]
 
 # =========================================================
-# ۸. توابع راه‌اندازی و مدیریت فایل‌های JSON
+# ۹. توابع راه‌اندازی و مدیریت فایل‌های JSON
 # =========================================================
 def ensure_library_files():
     """ایجاد فایل‌های کتابخانه در صورت عدم وجود"""
@@ -273,7 +273,7 @@ def save_library_file(file_path, data):
         return False
 
 # =========================================================
-# ۹. مدیریت دیتابیس (توسعه‌یافته با سیستم دعوت)
+# ۱۰. مدیریت دیتابیس (توسعه‌یافته با سیستم دعوت)
 # =========================================================
 def db_conn():
     """اتصال به دیتابیس با مدیریت خطا"""
@@ -456,7 +456,7 @@ def init_db():
     logger.info("🗄️ دیتابیس با موفقیت راه‌اندازی شد.")
 
 def generate_referral_code():
-    """تولید کد دعوت تصادفی"""
+    """تولید کد دعوت تصادفی برای بله"""
     chars = string.ascii_uppercase + string.digits
     return ''.join(random.choices(chars, k=8))
 
@@ -479,7 +479,7 @@ def get_user(chat_id):
         if row:
             return {
                 "name": row[0] or "",
-                "lang": row[1] if row[1] in ["fa", "en"] else "fa",
+                "lang": row[1] if row[1] in ["fa", "en", "ar"] else "fa",
                 "score": row[2] or 0,
                 "search_count": row[3] or 0,
                 "streak": row[4] or 0,
@@ -588,7 +588,7 @@ def update_user(chat_id, **kwargs):
         cur = conn.cursor()
         
         # اعتبارسنجی زبان
-        if "lang" in kwargs and kwargs["lang"] not in ["fa", "en"]:
+        if "lang" in kwargs and kwargs["lang"] not in ["fa", "en", "ar"]:
             kwargs["lang"] = "fa"
         
         # ساخت کوئری داینامیک
@@ -805,7 +805,7 @@ def update_daily_stats():
         logger.error(f"خطا در به‌روزرسانی آمار روزانه: {e}")
 
 # =========================================================
-# ۱۰. ابزارهای ارسال پیام به بله (با قابلیت Retry)
+# ۱۱. ابزارهای ارسال پیام به بله (با قابلیت Retry)
 # =========================================================
 def send_bale(method, data, retry_count=3):
     """ارسال درخواست به API بله با قابلیت تکرار"""
@@ -881,7 +881,7 @@ def send_chat_action(chat_id, action="typing"):
     })
 
 # =========================================================
-# ۱۱. سیستم چندزبانه (توسعه‌یافته)
+# ۱۲. سیستم چندزبانه (توسعه‌یافته با زبان عربی)
 # =========================================================
 LANGS = {
     "fa": {
@@ -896,7 +896,7 @@ LANGS = {
         "admin_msg_sent": "✅ پیامت با عشق برای ادمین ارسال شد. 🙏",
         "under_construction": "🚧 این بخش در حال زیباتر شدن است. به‌زودی می‌آید.",
         "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
-        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجو در قرآن با ترجمه 📖\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n\n💚 همراه همیشگی تو در مسیر نور",
+        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجو در قرآن با ترجمه و تفسیر 📖\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی از گوگل اسکالر 📚\n• حدیث و ذکر روزانه با تفسیر 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n• پشتیبانی از زبان عربی 🇸🇦\n\n💚 همراه همیشگی تو در مسیر نور",
         "daily_enable": "✅ دریافت روزانه فعال شد. هر روز با عشق محتوای جدید می‌فرستم.",
         "daily_disable": "❌ دریافت روزانه غیرفعال شد. هر وقت خواستی فعالش کن.",
         "daily_toggle": "🔔 دریافت روزانه",
@@ -961,7 +961,7 @@ LANGS = {
         "admin_msg_sent": "✅ Your message was sent to admin.",
         "under_construction": "🚧 This section is under construction.",
         "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
-        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Quran Search with translation 📖\n• AI Assistant 🤖\n• Scientific Articles 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝",
+        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Quran Search with translation and interpretation 📖\n• AI Assistant 🤖\n• Scientific Articles from Google Scholar 📚\n• Hadith & Dhikr with interpretation 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝\n• Arabic Language Support 🇸🇦",
         "daily_enable": "✅ Daily receive enabled.",
         "daily_disable": "❌ Daily receive disabled.",
         "daily_toggle": "🔔 Daily Receive",
@@ -1013,6 +1013,71 @@ LANGS = {
             "best_users": "🏅 Best Users",
             "referral": "🤝 Invite Friends"
         }
+    },
+    "ar": {
+        "select_lang": "🌍 الرجاء اختيار لغتك:",
+        "welcome": "مرحباً {name}! 😍\nمرحباً بك في بوت القرآن والعترة بجامعة علوم الطب شيراز.\nالرجاء اختيار خيار:",
+        "force_join": "🌸 للاستفادة من خدمات البوت، الرجاء الانضمام إلى قناتنا أولاً:\n{channel}\n\nثم اضغط /start مرة أخرى.",
+        "joined_success": "✅ تم تأكيد العضوية. مرحباً بك!",
+        "not_joined_yet": "🥲 لم يتم تأكيد عضويتك بعد. الرجاء الانضمام أولاً.",
+        "ai_prompt": "🤖 اسأل سؤالك، عزيزي!",
+        "ai_wait": "⏳ الرجاء الانتظار... جاري التفكير!",
+        "admin_msg_prompt": "📩 أرسل رسالتك وسأقوم بإرسالها إلى المشرف:",
+        "admin_msg_sent": "✅ تم إرسال رسالتك إلى المشرف.",
+        "under_construction": "🚧 هذا القسم قيد الإنشاء.",
+        "stats": "📊 إحصائياتك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n📅 تاريخ الانضمام: {join_date}\n👑 اللقب: {title}\n🎯 الزيارات: {visits}\n✅ المهام المنجزة: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
+        "about": "🌸 تم تصميم هذا البوت بحب من قبل مركز القرآن والعترة بجامعة علوم الطب شيراز.\n\n📚 الميزات:\n• البحث في القرآن مع الترجمة والتفسير 📖\n• المساعد الذكي 🤖\n• المقالات العلمية من جوجل سكولار 📚\n• الحديث والذكر اليومي مع التفسير 🕊️\n• القرآن في لحظة ✨\n• بطاقة النتائج والدوري القرآني 🏆\n• الاستلام اليومي 🔔\n• الاقتراحات والنقد مع النقاط ⭐\n• المهام اليومية 🎯\n• أفضل مستخدمي اليوم والأسبوع 🏅\n• نظام الدعوة والمكافآت 🤝\n• دعم اللغة العربية 🇸🇦",
+        "daily_enable": "✅ تم تفعيل الاستلام اليومي.",
+        "daily_disable": "❌ تم تعطيل الاستلام اليومي.",
+        "daily_toggle": "🔔 الاستلام اليومي",
+        "back_to_menu": "🏠 العودة إلى القائمة الرئيسية",
+        "search_quran_prompt": "📖 أرسل كلمة أو عبارة قرآنية للبحث.",
+        "article_prompt": "📚 أرسل موضوع المقال أو الكلمة المفتاحية.",
+        "league_text": "🏆 الدوري القرآني:\n\n{leaderboard}\n\n💡 لكسب النقاط:\n• البحث في القرآن 📖\n• إرسال اقتراح 📝\n• الزيارة اليومية 🌅\n• قراءة الحديث 🕊️\n• دعوة الأصدقاء 🤝",
+        "scorecard_text": "📋 بطاقة نتائجك وترتيبك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n🎯 الترتيب: {rank}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n👑 اللقب: {title}\n✅ المهام: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
+        "events_text": "📢 الفعاليات والمسابقات:\n\n🔹 مهرجان القرآن والعترة\n🔹 مسابقات حفظ وتفسير القرآن\n🔹 ورش التفسير والتدبر\n🔹 برامج شهر رمضان\n🔹 جلسات القرآن الأسبوعية\n🔹 مسابقات الكتابة القرآنية",
+        "unknown_error": "⚠️ حدث خطأ بسيط. الرجاء المحاولة مرة أخرى.",
+        "article_result": "📚 نتائج البحث عن المقالات العلمية لـ «{query}»:\n\n{results}\n\n💡 إذا لم تجد نتائج، جرب مقالاتنا المقترحة.",
+        "feedback_score_msg": "✅ تم تسجيل اقتراحك القيم. حصلت على {score} نقاط! 🌸",
+        "feedback_no_score": "✅ تم تسجيل اقتراحك. للحصول على نقاط أكثر، اكتب اقتراحاً أكثر تفصيلاً. 💪",
+        "broadcast_prompt": "📢 الرجاء إرسال نص الإعلان العام:",
+        "broadcast_success": "✅ تم إرسال الإعلان بنجاح إلى {count} مستخدم. 🌸",
+        "broadcast_error": "⚠️ لا يوجد نص للإرسال.",
+        "admin_panel": "🛠️ لوحة المشرف",
+        "admin_stats": "📊 إحصائيات البوت",
+        "admin_feedbacks": "📩 قائمة الاقتراحات",
+        "admin_broadcast": "📢 إعلان عام",
+        "admin_users": "👥 قائمة المستخدمين",
+        "admin_schedule": "⏰ إعدادات الجدولة",
+        "admin_features": "⚙️ التحكم في الميزات",
+        "admin_logs": "📋 سجل الأخطاء",
+        "admin_back": "🔄 العودة",
+        "admin_system": "💻 حالة النظام",
+        "admin_achievements": "🏅 إدارة الإنجازات",
+        "admin_best_users": "🏆 أفضل المستخدمين",
+        "admin_referrals": "🤝 إحصائيات الدعوات",
+        "menu_labels": {
+            "search_quran": "📖 البحث في القرآن",
+            "ai": "🤖 المساعد الذكي",
+            "articles": "📚 المقالات العلمية",
+            "hadith": "🕊️ الحديث والذكر اليومي",
+            "instant_quran": "✨ القرآن في لحظة",
+            "events": "📢 الفعاليات والمسابقات",
+            "feedback": "📝 اقتراح/نقد",
+            "admin_msg": "📨 رسالة إلى المشرف",
+            "stats": "📊 إحصائياتي",
+            "league": "🏆 الدوري القرآني",
+            "scorecard": "📋 بطاقة نتائجي",
+            "change_lang": "🌍 تغيير اللغة",
+            "daily_toggle": "🔔 الاستلام اليومي",
+            "about": "ℹ️ عن البوت",
+            "help": "❓ المساعدة",
+            "share": "📤 مشاركة",
+            "reminder": "⏰ تذكير",
+            "quests": "🎯 المهام اليومية",
+            "best_users": "🏅 أفضل المستخدمين",
+            "referral": "🤝 دعوة الأصدقاء"
+        }
     }
 }
 
@@ -1031,15 +1096,51 @@ def safe_text(lang_code, key, default=None, **kwargs):
             return text
     return text
 
+def get_greeting(lang):
+    """دریافت سلام بر اساس زمان و زبان"""
+    now = datetime.now()
+    hour = now.hour
+    
+    greetings = {
+        "fa": {
+            "morning": "صبح بخیر 🌅",
+            "afternoon": "ظهر بخیر ☀️",
+            "evening": "عصر بخیر 🌇",
+            "night": "شب بخیر 🌙"
+        },
+        "en": {
+            "morning": "Good Morning 🌅",
+            "afternoon": "Good Afternoon ☀️",
+            "evening": "Good Evening 🌇",
+            "night": "Good Night 🌙"
+        },
+        "ar": {
+            "morning": "صباح الخير 🌅",
+            "afternoon": "مساء الخير ☀️",
+            "evening": "مساء الخير 🌇",
+            "night": "ليلة سعيدة 🌙"
+        }
+    }
+    
+    if 5 <= hour < 12:
+        return greetings.get(lang, greetings["fa"])["morning"]
+    elif 12 <= hour < 17:
+        return greetings.get(lang, greetings["fa"])["afternoon"]
+    elif 17 <= hour < 21:
+        return greetings.get(lang, greetings["fa"])["evening"]
+    else:
+        return greetings.get(lang, greetings["fa"])["night"]
+
 # =========================================================
-# ۱۲. کیبوردهای اینلاین (توسعه‌یافته)
+# ۱۳. کیبوردهای اینلاین (توسعه‌یافته با زبان عربی)
 # =========================================================
 def lang_keyboard():
-    """کیبورد انتخاب زبان"""
+    """کیبورد انتخاب زبان با پشتیبانی از عربی"""
     return {
         "inline_keyboard": [
             [{"text": "🇮🇷 فارسی", "callback_data": "setlang_fa"}],
-            [{"text": "🇬🇧 English", "callback_data": "setlang_en"}]
+            [{"text": "🇬🇧 English", "callback_data": "setlang_en"}],
+            [{"text": "🇸🇦 العربية", "callback_data": "setlang_ar"}]
         ]
     }
 
@@ -1084,13 +1185,14 @@ def best_users_keyboard(lang):
     }
 
 def referral_keyboard(lang, referral_code):
-    """کیبورد دعوت از دوستان"""
+    """کیبورد دعوت از دوستان برای بله"""
     bot_username = BOT_USERNAME
-    referral_link = f"https://t.me/{bot_username}?start=ref_{referral_code}"
+    # لینک دعوت برای بله
+    referral_link = f"https://ble.ir/{bot_username}?start=ref_{referral_code}"
     
     return {
         "inline_keyboard": [
-            [{"text": "📤 اشتراک‌گذاری لینک دعوت", "url": f"https://t.me/share/url?url={referral_link}&text=🌸 به ربات کانون قرآن و عترت بپیوند! \nبا این لینک عضو شو و ۱۰ امتیاز هدیه بگیر! 🎁"}],
+            [{"text": "📤 اشتراک‌گذاری لینک دعوت", "url": f"https://ble.ir/share?url={referral_link}&text=🌸 به ربات کانون قرآن و عترت بپیوند! \nبا این لینک عضو شو و ۱۰ امتیاز هدیه بگیر! 🎁"}],
             [{"text": "📋 کپی لینک", "callback_data": "copy_referral"}],
             [{"text": "📊 آمار دعوت‌ها", "callback_data": "referral_stats"}],
             [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
@@ -1170,7 +1272,7 @@ def reminder_keyboard(lang):
     }
 
 # =========================================================
-# ۱۳. عضویت اجباری کانال بله (با کش)
+# ۱۴. عضویت اجباری کانال بله (با کش)
 # =========================================================
 MEMBERSHIP_CACHE = {}
 CACHE_DURATION = 300  # 5 دقیقه
@@ -1209,7 +1311,7 @@ def check_membership(chat_id):
         return True
 
 # =========================================================
-# ۱۴. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا و رفع باگ)
+# ۱۵. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا و رفع باگ)
 # =========================================================
 def ask_deepseek(question, lang):
     """ارسال سوال به DeepSeek با مدیریت کامل خطا"""
@@ -1220,7 +1322,7 @@ def ask_deepseek(question, lang):
         logger.warning("کلید DeepSeek نامعتبر است")
         return "🔑 کلید API هوش مصنوعی تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
     
-    language_name = {"fa": "Persian", "en": "English"}.get(lang, "Persian")
+    language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
     
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_KEY}",
@@ -1230,7 +1332,7 @@ def ask_deepseek(question, lang):
     payload = {
         "model": "deepseek-chat",
         "messages": [
-            {"role": "system", "content": f"You are a warm, respectful, accurate assistant for a Quranic student bot at Shiraz University of Medical Sciences. Reply in {language_name}. Keep the answer useful, friendly, and well-formatted. If you don't know something, say so clearly."},
+            {"role": "system", "content": f"You are a warm, respectful, accurate assistant for a Quranic student bot at Shiraz University of Medical Sciences. Reply in {language_name}. Keep the answer useful, friendly, and well-formatted. If you don't know something, say so clearly. Provide interpretations that are relevant to medical professionals and students."},
             {"role": "user", "content": question}
         ],
         "temperature": 0.7,
@@ -1282,10 +1384,10 @@ def ask_deepseek(question, lang):
         return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً بعداً تلاش کنید."
 
 # =========================================================
-# ۱۵. جستجوی قرآن و کتاب‌ها (بهبودیافته)
+# ۱۶. جستجوی کامل قرآن و کتاب‌ها (با تفسیر)
 # =========================================================
 def search_quran_only(q):
-    """جستجو در قرآن با مدیریت خطا"""
+    """جستجو در قرآن با مدیریت خطا و بازگشت تفسیر"""
     if not FEATURES["quran_search"]:
         return []
     
@@ -1298,7 +1400,8 @@ def search_quran_only(q):
         search_text = " ".join([
             str(item.get("text", "")),
             str(item.get("trans", "")),
-            str(item.get("surah", ""))
+            str(item.get("surah", "")),
+            str(item.get("interpretation", ""))
         ]).lower()
         
         if q in search_text:
@@ -1316,7 +1419,7 @@ def search_quran_only(q):
     return unique_results[:10]
 
 def search_other_books(q):
-    """جستجو در نهج‌البلاغه و صحیفه سجادیه"""
+    """جستجو در نهج‌البلاغه و صحیفه سجادیه با تفسیر"""
     q = q.strip().lower()
     if not q or len(q) < 2:
         return []
@@ -1328,7 +1431,8 @@ def search_other_books(q):
         search_text = " ".join([
             str(item.get("text", "")),
             str(item.get("trans", "")),
-            str(item.get("type", ""))
+            str(item.get("type", "")),
+            str(item.get("interpretation", ""))
         ]).lower()
         
         if q in search_text:
@@ -1340,7 +1444,8 @@ def search_other_books(q):
         search_text = " ".join([
             str(item.get("text", "")),
             str(item.get("trans", "")),
-            str(item.get("title", ""))
+            str(item.get("title", "")),
+            str(item.get("interpretation", ""))
         ]).lower()
         
         if q in search_text:
@@ -1359,20 +1464,29 @@ def search_other_books(q):
     return unique_results[:5]
 
 def format_search_result(item, book_name="قرآن"):
-    """فرمت‌بندی نتایج جستجو"""
+    """فرمت‌بندی نتایج جستجو با تفسیر"""
     if book_name == "قرآن":
-        return f"📖 <b>{item['surah']} (آیه {item['verse']})</b>\n{item['text']}\n✨ {item['trans']}"
+        return f"""📖 <b>{item['surah']} (آیه {item['verse']})</b>
+{item['text']}
+✨ {item['trans']}
+💡 <b>تفسیر:</b> {item.get('interpretation', 'تفسیر ثبت نشده')}"""
     elif book_name == "نهج‌البلاغه":
-        return f"📜 <b>{item['type']} {item['number']}</b>\n{item['text']}\n✨ {item['trans']}"
+        return f"""📜 <b>{item['type']} {item['number']}</b>
+{item['text']}
+✨ {item['trans']}
+💡 <b>تفسیر:</b> {item.get('interpretation', 'تفسیر ثبت نشده')}"""
     elif book_name == "صحیفه سجادیه":
-        return f"🤲 <b>{item['title']} (دعای {item['dua']})</b>\n{item['text']}\n✨ {item['trans']}"
-    return f"📚 <b>{item.get('title', '')}</b>\n{item['text']}\n✨ {item['trans']}"
+        return f"""🤲 <b>{item['title']} (دعای {item['dua']})</b>
+{item['text']}
+✨ {item['trans']}
+💡 <b>تفسیر:</b> {item.get('interpretation', 'تفسیر ثبت نشده')}"""
+    return f"📚 <b>{item.get('title', '')}</b>\n{item['text']}\n✨ {item['trans']}\n💡 <b>تفسیر:</b> {item.get('interpretation', 'تفسیر ثبت نشده')}"
 
 # =========================================================
-# ۱۶. جستجوی مقالات علمی (با کش و پشتیبان)
+# ۱۷. جستجوی مقالات از گوگل اسکالر
 # =========================================================
 def search_articles(query):
-    """جستجوی مقالات با استفاده از OpenAlex و کش"""
+    """جستجوی مقالات با استفاده از Google Scholar و OpenAlex"""
     if not FEATURES["articles_search"]:
         return "🔧 این ویژگی در حال حاضر غیرفعال است."
     
@@ -1386,38 +1500,42 @@ def search_articles(query):
         logger.info(f"مقاله از کش: {query}")
         return ARTICLE_CACHE[cache_key]
     
+    results = []
+    
     try:
-        # تلاش برای جستجو در OpenAlex
-        url = f"https://api.openalex.org/works?search={query.replace(' ', '+')}&per-page=5"
+        # تلاش برای جستجو در OpenAlex (که شامل مقالات گوگل اسکالر هم می‌شود)
+        url = f"https://api.openalex.org/works?search={query.replace(' ', '+')}&per-page=5&filter=topics.id:T10194,T10195,T10196"
         response = requests.get(url, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
-            results = []
             
             for work in data.get("results", []):
                 title = work.get("title", "")
                 doi = work.get("doi", "")
                 link = f"https://doi.org/{doi}" if doi else ""
                 year = work.get("publication_year", "")
+                abstract = work.get("abstract", "")
                 
                 if title:
                     result_text = f"📄 <b>{title}</b>"
                     if year:
                         result_text += f" ({year})"
+                    if abstract:
+                        result_text += f"\n📝 {abstract[:200]}..."
                     if link:
                         result_text += f"\n🔗 <a href='{link}'>{link}</a>"
                     results.append(result_text)
-            
-            if results:
-                final_result = '\n\n'.join(results)
-                # ذخیره در کش
-                ARTICLE_CACHE[cache_key] = final_result
-                save_library_file(ARTICLES_FILE, ARTICLE_CACHE)
-                return final_result
         
-        # اگر نتیج‌های نیافت، از مقالات محلی استفاده کن
-        return search_local_articles(query)
+        # اگر نتیج‌های نیافت یا خطا بود، از مقالات محلی استفاده کن
+        if not results:
+            return search_local_articles(query)
+        
+        final_result = '\n\n'.join(results)
+        # ذخیره در کش
+        ARTICLE_CACHE[cache_key] = final_result
+        save_library_file(ARTICLES_FILE, ARTICLE_CACHE)
+        return final_result
         
     except Exception as e:
         logger.error(f"خطا در جستجوی مقالات: {e}")
@@ -1428,7 +1546,13 @@ def search_local_articles(query):
     query = query.lower()
     results = []
     
-    for article in LOCAL_ARTICLES:
+    # اولویت با مقالات پزشکی و قرآنی
+    priority_articles = [a for a in LOCAL_ARTICLES if "پزشکی" in a["category"] or "تفسیر" in a["category"]]
+    other_articles = [a for a in LOCAL_ARTICLES if a not in priority_articles]
+    
+    all_articles = priority_articles + other_articles
+    
+    for article in all_articles:
         if query in article["title"].lower() or query in article["category"].lower():
             results.append(f"📄 <b>{article['title']}</b>\n📝 {article['summary']}\n🏷️ دسته: {article['category']}")
     
@@ -1442,11 +1566,13 @@ def search_local_articles(query):
 • تفسیر سوره حمد
 • اهمیت نماز در قرآن
 • تأثیر قرآن بر سلامت روان
+• اخلاق پزشکی در اسلام
+• طب اسلامی و قرآن
 
 💡 یا با کلمات کلیدی دیگه جستجو کن."""
 
 # =========================================================
-# ۱۷. سیستم پاداش و امتیازدهی هوشمند
+# ۱۸. سیستم پاداش و امتیازدهی هوشمند
 # =========================================================
 def calculate_reward(action, user_data):
     """محاسبه امتیاز بر اساس نوع فعالیت"""
@@ -1456,11 +1582,11 @@ def calculate_reward(action, user_data):
     rewards = {
         "quran_search": {"points": 3, "emoji": "📖"},
         "daily_visit": {"points": 5, "emoji": "🌅"},
-        "feedback": {"points": 5, "emoji": "⭐"},  # کاهش یافته از ۱۰ به ۵
+        "feedback": {"points": 5, "emoji": "⭐"},
         "hadith_read": {"points": 2, "emoji": "🕊️"},
         "instant_quran": {"points": 2, "emoji": "✨"},
         "streak_bonus": {"points": 15, "emoji": "🔥"},
-        "feedback_high_score": {"points": 10, "emoji": "💎"},  # کاهش یافته از ۲۰ به ۱۰
+        "feedback_high_score": {"points": 10, "emoji": "💎"},
         "quest_complete": {"points": 5, "emoji": "🎯"},
         "referral_bonus": {"points": 10, "emoji": "🤝"}
     }
@@ -1595,7 +1721,7 @@ def get_user_achievements(chat_id):
         return []
 
 # =========================================================
-# ۱۸. سیستم کوئست‌های روزانه
+# ۱۹. سیستم کوئست‌های روزانه
 # =========================================================
 def complete_quest(chat_id, quest_id, user_data):
     """انجام کوئست و دریافت امتیاز"""
@@ -1663,7 +1789,7 @@ def get_quests_status(chat_id):
         return []
 
 # =========================================================
-# ۱۹. سیستم بهترین کاربر روز و هفته
+# ۲۰. سیستم بهترین کاربر روز و هفته
 # =========================================================
 def get_best_user(period_type):
     """دریافت بهترین کاربر روز یا هفته"""
@@ -1812,10 +1938,55 @@ def schedule_best_users():
             time.sleep(60)
 
 # =========================================================
-# ۲۰. سیستم ارسال روزانه (۳ زمان با مدیریت خطا)
+# ۲۱. سیستم ارسال روزانه با تفسیر هوشمند
 # =========================================================
+def get_daily_interpretation(text, lang="fa"):
+    """دریافت تفسیر هوشمند برای متن با استفاده از DeepSeek"""
+    try:
+        if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
+            return "تفسیر: این آیه/حدیث یادآور اهمیت ایمان و عمل صالح در زندگی است."
+        
+        language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
+        
+        headers = {
+            "Authorization": f"Bearer {DEEPSEEK_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        prompt = f"""Provide a brief, profound interpretation (1-3 sentences) of this Islamic text for medical professionals and students. Make it thoughtful and impactful:
+
+Text: {text}
+
+Reply in {language_name}. Keep it short, meaningful, and relevant to healthcare workers. Focus on the spiritual and ethical lessons that can be applied in medical practice and daily life."""
+
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 150
+        }
+        
+        res = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=20
+        )
+        
+        if res.status_code == 200:
+            data = res.json()
+            if "choices" in data and data["choices"]:
+                return data["choices"][0]["message"]["content"]
+        
+        return "تفسیر: این متن ارزشمند، یادآور اهمیت ایمان و عمل صالح در مسیر زندگی است."
+    except Exception as e:
+        logger.error(f"خطا در دریافت تفسیر: {e}")
+        return "تفسیر: این متن ارزشمند، یادآور اهمیت ایمان و عمل صالح در مسیر زندگی است."
+
 def send_daily_posts():
-    """ارسال محتوای روزانه در ۳ زمان مشخص"""
+    """ارسال محتوای روزانه در ۳ زمان مشخص با تفسیر هوشمند"""
     try:
         if not FEATURES["daily_posts"]:
             return
@@ -1833,24 +2004,54 @@ def send_daily_posts():
             if now.hour == hour and now.minute == minute:
                 logger.info(f"🔄 شروع ارسال پست روزانه - {time_name}")
                 
-                # ۱. آیه روز از قرآن
+                # ۱. آیه روز از قرآن با تفسیر
                 q_item, q_idx = next_item("quran", QURAN_DATA)
                 q_msg = ""
                 if q_item:
-                    q_msg = format_daily_message("quran", q_item)
-                    if q_msg:
-                        send_message(CHANNEL_ID, q_msg)
-                        set_publish_index("quran", q_idx)
-                        save_sent_message("daily_quran", q_msg, CHANNEL_ID)
-                        logger.info(f"آیه روزانه ارسال شد - {time_name}")
-                        time.sleep(2)
+                    # دریافت تفسیر هوشمند
+                    interpretation = q_item.get('interpretation', '')
+                    if not interpretation or len(interpretation) < 10:
+                        interpretation = get_daily_interpretation(q_item['text'], "fa")
+                    
+                    q_msg = f"""📘 <b>آیه منتخب روز</b>
+
+سوره {q_item['surah']} - آیه {q_item['verse']}
+
+{q_item['text']}
+
+🔹 ترجمه:
+{q_item['trans']}
+
+💡 <b>تفسیر:</b> {interpretation}"""
+                    
+                    send_message(CHANNEL_ID, q_msg)
+                    set_publish_index("quran", q_idx)
+                    save_sent_message("daily_quran", q_msg, CHANNEL_ID)
+                    logger.info(f"آیه روزانه با تفسیر ارسال شد - {time_name}")
+                    time.sleep(2)
                 
-                # ۲. حدیث روز (تصادفی)
+                # ۲. حدیث روز با تفسیر
                 hadith_item = random.choice(HADITHS_WITH_DHIKR)
-                hadith_msg = f"🕊️ <b>حدیث روز</b>\n\n{hadith_item['hadith']}\n\n🔹 <b>ذکر روزانه:</b>\n{hadith_item['dhikr']}\n\n💚 با یاد خدا دل‌ها آرام می‌گیرد.\n🏷️ دسته: {hadith_item['category']}"
+                hadith_interpretation = hadith_item.get('interpretation', '')
+                if not hadith_interpretation or len(hadith_interpretation) < 10:
+                    hadith_interpretation = get_daily_interpretation(hadith_item['hadith'], "fa")
+                
+                hadith_msg = f"""🕊️ <b>حدیث روز</b>
+
+{hadith_item['hadith']}
+
+🔹 <b>ذکر روزانه:</b>
+{hadith_item['dhikr']}
+
+💡 <b>تفسیر:</b> {hadith_interpretation}
+
+🏷️ دسته: {hadith_item['category']}
+
+💚 با یاد خدا دل‌ها آرام می‌گیرد."""
+                
                 send_message(CHANNEL_ID, hadith_msg)
                 save_sent_message("daily_hadith", hadith_msg, CHANNEL_ID)
-                logger.info(f"حدیث روزانه ارسال شد - {time_name}")
+                logger.info(f"حدیث روزانه با تفسیر ارسال شد - {time_name}")
                 time.sleep(2)
                 
                 # ۳. ارسال به کاربرانی که دریافت روزانه فعال دارند
@@ -1864,7 +2065,7 @@ def send_daily_posts():
                     sent_count = 0
                     for user in users:
                         try:
-                            user_lang = user[2] if user[2] in ["fa", "en"] else "fa"
+                            user_lang = user[2] if user[2] in ["fa", "en", "ar"] else "fa"
                             greeting = safe_text(user_lang, "daily_greeting", default="🌸 پیام روزانه")
                             
                             daily_msg = f"""🌟 <b>{greeting} کانون قرآن و عترت</b>
@@ -1917,62 +2118,8 @@ def next_item(book_name, data_list):
     
     return item, new_idx
 
-def format_daily_message(book_name, item):
-    """فرمت‌بندی پیام روزانه"""
-    if not item:
-        return None
-    
-    if book_name == "quran":
-        return f"""📘 <b>آیه منتخب روز</b>
-
-سوره {item['surah']} - آیه {item['verse']}
-
-{item['text']}
-
-🔹 ترجمه:
-{item['trans']}
-
-💡 با تدبر در آیات الهی، نور معرفت را در دل خود جاری کن."""
-    
-    if book_name == "nahj":
-        return f"""📜 <b>فراز روز از نهج‌البلاغه</b>
-
-{item['type']} {item['number']}
-
-{item['text']}
-
-🔹 ترجمه:
-{item['trans']}
-
-💡 سخنان امیرالمؤمنین علی(ع) چراغ راه زندگی است."""
-    
-    if book_name == "sahifeh":
-        return f"""🤲 <b>فراز روز از صحیفه سجادیه</b>
-
-{item['title']} (دعای {item['dua']})
-
-{item['text']}
-
-🔹 ترجمه:
-{item['trans']}
-
-💡 دعاهای امام سجاد(ع) اوج عرفان و بندگی است."""
-    
-    return None
-
-def daily_scheduler():
-    """اسکجولر روزانه - هر دقیقه بررسی می‌کند"""
-    time.sleep(30)
-    while True:
-        try:
-            send_daily_posts()
-            update_daily_stats()
-        except Exception as e:
-            logger.error(f"خطا در اسکجولر: {e}")
-        time.sleep(60)
-
 # =========================================================
-# ۲۱. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
+# ۲۲. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
 # =========================================================
 def handle_state_message(chat_id, text, user):
     """پردازش پیام‌های وضعیت‌دار کاربر"""
@@ -2045,7 +2192,7 @@ def handle_state_message(chat_id, text, user):
                 send_message(chat_id, msg, main_menu(chat_id, lang))
             else:
                 # پیشنهاد کلمات کلیدی
-                suggestions = "💡 کلمات کلیدی پیشنهادی:\n• ایمان\n• صبر\n• نماز\n• توکل\n• رحمت"
+                suggestions = "💡 کلمات کلیدی پیشنهادی:\n• ایمان\n• صبر\n• نماز\n• توکل\n• رحمت\n• پزشکی\n• سلامت"
                 send_message(
                     chat_id,
                     f"😔 نتیجه‌ای برای عبارت «{text}» پیدا نشد.\n\n{suggestions}",
@@ -2057,13 +2204,13 @@ def handle_state_message(chat_id, text, user):
     # وضعیت مقالات علمی
     if state == "waiting_article":
         send_chat_action(chat_id, "typing")
-        send_message(chat_id, "📚 در حال جستجوی مقالات...")
+        send_message(chat_id, "📚 در حال جستجوی مقالات از گوگل اسکالر...")
         result = search_articles(text)
         send_message(chat_id, safe_text(lang, "article_result", query=text, results=result), main_menu(chat_id, lang))
         update_user(chat_id, state="none")
         return True
     
-    # وضعیت انتقاد و پیشنهاد (امتیاز کمتر از قرآن)
+    # وضعیت انتقاد و پیشنهاد
     if state == "waiting_feedback":
         if not FEATURES["feedback_system"]:
             send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
@@ -2077,7 +2224,7 @@ def handle_state_message(chat_id, text, user):
         category = "general"
         
         # تشخیص دسته‌بندی
-        if "قرآن" in text or "ترجمه" in text:
+        if "قرآن" in text or "ترجمه" in text or "آیه" in text:
             category = "quran"
             score += 1
         elif "حدیث" in text or "روایت" in text:
@@ -2103,7 +2250,7 @@ def handle_state_message(chat_id, text, user):
         if "عالی" in text or "خوب" in text or "قشنگ" in text:
             score += 1
         
-        # حداکثر امتیاز ۵ (کمتر از قرآن که ۳ امتیاز دارد)
+        # حداکثر امتیاز ۵
         score = min(score, 5)
         
         try:
@@ -2205,7 +2352,7 @@ def handle_state_message(chat_id, text, user):
     return False
 
 # =========================================================
-# ۲۲. توابع کمکی (توسعه‌یافته)
+# ۲۳. توابع کمکی (توسعه‌یافته)
 # =========================================================
 def get_user_state(chat_id):
     """دریافت وضعیت کاربر"""
@@ -2285,7 +2432,7 @@ def format_system_stats():
 📅 آخرین به‌روزرسانی: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
 
 # =========================================================
-# ۲۳. مسیرهای تست و سلامت (توسعه‌یافته)
+# ۲۴. مسیرهای تست و سلامت (توسعه‌یافته)
 # =========================================================
 @app.route("/", methods=["GET", "HEAD"])
 def health():
@@ -2293,7 +2440,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "6.0",
+        "version": "7.0",
         "time": datetime.now().isoformat(),
         "quran_records": len(QURAN_DATA),
         "nahj_records": len(NAHJ_DATA),
@@ -2302,7 +2449,8 @@ def health():
         "active_users_7d": get_active_users(7),
         "features": FEATURES,
         "deepseek_configured": bool(DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 10),
-        "port": PORT
+        "port": PORT,
+        "supported_languages": ["fa", "en", "ar"]
     }), 200
 
 @app.route("/webhook", methods=["GET", "HEAD"])
@@ -2315,7 +2463,7 @@ def webhook_check():
     }), 200
 
 # =========================================================
-# ۲۴. وب هوک و مدیریت یکپارچه درخواست‌ها (توسعه‌یافته)
+# ۲۵. وب هوک و مدیریت یکپارچه درخواست‌ها (توسعه‌یافته)
 # =========================================================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook_token():
@@ -2337,7 +2485,7 @@ def webhook_token():
 
             chat_id = int(chat_id)
             
-            # پردازش کد دعوت در start
+            # پردازش کد دعوت در start (برای بله)
             if text and text.startswith("/start"):
                 parts = text.split()
                 if len(parts) > 1 and parts[1].startswith("ref_"):
@@ -2400,15 +2548,7 @@ def webhook_token():
                 return "OK", 200
 
             # نمایش منوی اصلی با پیام خوش‌آمدگویی پویا
-            hour = datetime.now().hour
-            if 5 <= hour < 12:
-                greeting = "صبح بخیر 🌅"
-            elif 12 <= hour < 17:
-                greeting = "ظهر بخیر ☀️"
-            elif 17 <= hour < 21:
-                greeting = "عصر بخیر 🌇"
-            else:
-                greeting = "شب بخیر 🌙"
+            greeting = get_greeting(lang)
             
             # دریافت عنوان کاربر
             title = get_user_title(user.get("score", 0))
@@ -2419,10 +2559,10 @@ def webhook_token():
 👑 عنوان شما: {title}
 
 ✨ اینجا همراه همیشگی تو در مسیر نور و معرفت است:
-• جستجو در قرآن با ترجمه 📖
+• جستجو در قرآن با ترجمه و تفسیر 📖
 • هوش مصنوعی پاسخ‌گو 🤖
-• مقالات علمی 📚
-• حدیث و ذکر روزانه 🕊️
+• مقالات علمی از گوگل اسکالر 📚
+• حدیث و ذکر روزانه با تفسیر 🕊️
 • قرآن در لحظه با ترجمه ✨
 • پیشنهاد و انتقاد با امتیاز ⭐
 • کوئست‌های روزانه 🎯
@@ -2480,16 +2620,7 @@ def webhook_token():
                         join_keyboard()
                     )
                 else:
-                    hour = datetime.now().hour
-                    if 5 <= hour < 12:
-                        greeting = "صبح بخیر 🌅"
-                    elif 12 <= hour < 17:
-                        greeting = "ظهر بخیر ☀️"
-                    elif 17 <= hour < 21:
-                        greeting = "عصر بخیر 🌇"
-                    else:
-                        greeting = "شب بخیر 🌙"
-                    
+                    greeting = get_greeting(lang)
                     title = get_user_title(user.get("score", 0))
                     welcome_text = f"{greeting} {first_name} جان! 😍\n\nبه ربات کانون قرآن و عترت خوش آمدی.\n👑 عنوان: {title}\n\nاز منوی زیر استفاده کن:"
                     send_message(chat_id, welcome_text, main_menu(chat_id, lang))
@@ -2518,16 +2649,7 @@ def webhook_token():
             # ===========================
             if cb_data == "back_main":
                 update_user(chat_id, state="none")
-                hour = datetime.now().hour
-                if 5 <= hour < 12:
-                    greeting = "صبح بخیر 🌅"
-                elif 12 <= hour < 17:
-                    greeting = "ظهر بخیر ☀️"
-                elif 17 <= hour < 21:
-                    greeting = "عصر بخیر 🌇"
-                else:
-                    greeting = "شب بخیر 🌙"
-                
+                greeting = get_greeting(lang)
                 title = get_user_title(user.get("score", 0))
                 send_message(
                     chat_id,
@@ -2580,7 +2702,8 @@ def webhook_token():
                     referral_code = generate_referral_code()
                     update_user(chat_id, referral_code=referral_code)
                 
-                referral_link = f"https://t.me/{BOT_USERNAME}?start=ref_{referral_code}"
+                # لینک دعوت برای بله
+                referral_link = f"https://ble.ir/{BOT_USERNAME}?start=ref_{referral_code}"
                 send_message(
                     chat_id,
                     f"📋 <b>لینک دعوت شما:</b>\n\n{referral_link}\n\n🌸 این لینک رو با دوستانت به اشتراک بذار!",
@@ -3020,15 +3143,15 @@ def webhook_token():
 
 ✨ همراه همیشگی تو در مسیر نور و معرفت
 
-📖 جستجوی قرآن با ترجمه
+📖 جستجوی قرآن با ترجمه و تفسیر
 🤖 هوش مصنوعی پاسخ‌گو
-🕊️ حدیث و ذکر روزانه
+🕊️ حدیث و ذکر روزانه با تفسیر
 🏆 لیگ قرآنی
 🎯 کوئست‌های روزانه
 🤝 سیستم دعوت و پاداش
 
 💚 با ما همراه شو:
-https://t.me/{bot_username}"""
+https://ble.ir/{bot_username}"""
                 
                 send_message(chat_id, share_text, share_keyboard(lang))
                 return "OK", 200
@@ -3040,7 +3163,7 @@ https://t.me/{bot_username}"""
                 bot_username = BOT_USERNAME
                 send_message(
                     chat_id,
-                    f"📋 <b>لینک ربات:</b>\n\nhttps://t.me/{bot_username}\n\n💚 این لینک رو با دوستانت به اشتراک بذار!",
+                    f"📋 <b>لینک ربات:</b>\n\nhttps://ble.ir/{bot_username}\n\n💚 این لینک رو با دوستانت به اشتراک بذار!",
                     share_keyboard(lang)
                 )
                 return "OK", 200
@@ -3109,18 +3232,18 @@ https://t.me/{bot_username}"""
 
 📖 <b>جستجوی قرآن:</b>
 • عبارت مورد نظر را وارد کنید
-• نتایج شامل متن و ترجمه نمایش داده می‌شود
+• نتایج شامل متن، ترجمه و تفسیر نمایش داده می‌شود
 
 🤖 <b>هوش مصنوعی:</b>
 • هر سوال قرآنی یا دینی دارید بپرسید
 • پاسخ‌های دقیق و مفید دریافت کنید
 
 📚 <b>مقالات علمی:</b>
-• جستجوی مقالات علمی مرتبط با قرآن
-• دسترسی به مقالات معتبر
+• جستجوی مقالات از گوگل اسکالر
+• اولویت با مقالات قرآن و عترت و پزشکی
 
 🕊️ <b>حدیث و ذکر:</b>
-• دریافت حدیث روزانه
+• دریافت حدیث روزانه با تفسیر
 • ذکر مخصوص هر روز
 
 ✨ <b>قرآن در لحظه:</b>
@@ -3146,6 +3269,11 @@ https://t.me/{bot_username}"""
 📝 <b>پیشنهاد/انتقاد:</b>
 • ارسال پیشنهادات سازنده
 • کسب امتیاز برای پیشنهادات خوب
+
+🌍 <b>زبان‌های پشتیبانی:</b>
+• فارسی 🇮🇷
+• English 🇬🇧
+• العربية 🇸🇦
 
 💚 همراه همیشگی تو در مسیر نور"""
                 
@@ -3185,12 +3313,18 @@ https://t.me/{bot_username}"""
                         return "OK", 200
                     
                     item = random.choice(HADITHS_WITH_DHIKR)
+                    interpretation = item.get('interpretation', '')
+                    if not interpretation or len(interpretation) < 10:
+                        interpretation = get_daily_interpretation(item['hadith'], lang)
+                    
                     msg = f"""🕊️ <b>حدیث روز</b>
 
 {item['hadith']}
 
 🔹 <b>ذکر روزانه:</b>
 {item['dhikr']}
+
+💡 <b>تفسیر:</b> {interpretation}
 
 🏷️ دسته: {item['category']}
 
@@ -3205,6 +3339,8 @@ https://t.me/{bot_username}"""
                         return "OK", 200
                     
                     item = random.choice(INSTANT_QURAN_FULL)
+                    interpretation = get_daily_interpretation(item['arabic'], lang)
+                    
                     msg = f"""📖 <b>قرآن در لحظه</b>
 
 <b>{item['surah']} (آیه {item['verse']})</b>
@@ -3212,6 +3348,8 @@ https://t.me/{bot_username}"""
 {item['arabic']}
 
 ✨ {item['trans']}
+
+💡 <b>تفسیر:</b> {interpretation}
 
 💚 هر لحظه با قرآن، هر لحظه با نور."""
                     send_message(chat_id, msg, main_menu(chat_id, lang))
@@ -3375,7 +3513,7 @@ https://t.me/{bot_username}"""
         return "OK", 200
 
 # =========================================================
-# ۲۵. اجرای استارتاپ و سرور وب (توسعه‌یافته)
+# ۲۶. اجرای استارتاپ و سرور وب (توسعه‌یافته)
 # =========================================================
 def startup():
     """راه‌اندازی اولیه ربات با تمام قابلیت‌ها"""
@@ -3430,10 +3568,22 @@ def startup():
         logger.info("🎉 ربات با موفقیت راه‌اندازی شد!")
         logger.info(f"📊 آمار اولیه: {get_system_stats()}")
         logger.info(f"🌐 سرور روی پورت {PORT} در حال اجراست...")
+        logger.info(f"🌍 زبان‌های پشتیبانی: فارسی, English, العربية")
         
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
         logger.error(traceback.format_exc())
+
+def daily_scheduler():
+    """اسکجولر روزانه - هر دقیقه بررسی می‌کند"""
+    time.sleep(30)
+    while True:
+        try:
+            send_daily_posts()
+            update_daily_stats()
+        except Exception as e:
+            logger.error(f"خطا در اسکجولر: {e}")
+        time.sleep(60)
 
 # اجرای startup در زمان بارگذاری
 startup()
