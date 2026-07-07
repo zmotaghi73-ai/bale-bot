@@ -9,19 +9,29 @@ import time
 import re
 from datetime import datetime
 from flask import Flask, request, jsonify
-from thefuzz import fuzz, process
+
+# استفاده از thefuzz فقط در صورت نصب بودن
+try:
+    from thefuzz import fuzz, process
+    FUZZ_AVAILABLE = True
+except ImportError:
+    FUZZ_AVAILABLE = False
+    print("⚠️ thefuzz نصب نیست. جستجوی فازی غیرفعال است.")
 
 app = Flask(__name__)
 
 # =========================================================
 # ۱. تنظیمات و متغیرهای محیطی اصلی
 # =========================================================
-TOKEN = os.getenv("BOT_TOKEN", "YOUR_BALE_BOT_TOKEN")
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "YOUR_DEEPSEEK_API_KEY")
+TOKEN = os.getenv("BOT_TOKEN", "")
+if not TOKEN:
+    print("⚠️ BOT_TOKEN تنظیم نشده است! ربات کار نخواهد کرد.")
+
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
-DB_PATH = "bot_data.db"
+DB_PATH = os.getenv("DATABASE_PATH", "bot_data.db")
 
 QURAN_FILE = "quran.json"
 NAHJ_FILE = "nahj.json"
@@ -32,7 +42,7 @@ NAHJ_DATA = []
 SAHIFEH_DATA = []
 
 # =========================================================
-# ۲. داده‌های اولیه و نمونه (Seed Data) - افزایش یافته
+# ۲. داده‌های اولیه و نمونه (Seed Data)
 # =========================================================
 DEFAULT_QURAN_SEED = [
     {"index": 1, "surah": "حمد", "verse": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "trans": "به نام خداوند بخشنده مهربان"},
@@ -79,7 +89,7 @@ DEFAULT_SAHIFEH_SEED = [
 ]
 
 # =========================================================
-# ۳. احادیث و آیات تصادفی (توسعه یافته)
+# ۳. احادیث و آیات تصادفی
 # =========================================================
 HADITHS = [
     "پیامبر اکرم (ص): بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸",
@@ -132,7 +142,7 @@ def load_library():
         print(f"🔴 خطا در بارگذاری فایل‌های کتابخانه: {e}")
 
 # =========================================================
-# ۵. مدیریت دیتابیس (توسعه یافته)
+# ۵. مدیریت دیتابیس
 # =========================================================
 def db_conn():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -307,27 +317,41 @@ def update_pending_status(content_id, status):
 # ۶. ابزارهای ارسال پیام به بله
 # =========================================================
 def send_bale(method, data):
+    if not TOKEN:
+        print("⚠️ TOKEN تنظیم نشده")
+        return {"ok": False, "error": "TOKEN not set"}
+    
     url = f"{BASE_URL}/{method}"
     try:
-        response = requests.post(url, json=data, timeout=20)
-        return response.json()
+        response = requests.post(url, json=data, timeout=30)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"⚠️ BALE API status {response.status_code}: {response.text[:200]}")
+            return {"ok": False, "error": f"HTTP {response.status_code}"}
+    except requests.exceptions.Timeout:
+        print(f"⏰ Timeout در {method}")
+        return {"ok": False, "error": "Timeout"}
     except Exception as e:
-        print(f"BALE API ERROR in {method}: {e}")
-        return None
+        print(f"❌ BALE API ERROR in {method}: {e}")
+        return {"ok": False, "error": str(e)}
 
 def answer_callback(callback_query_id, text=None):
     payload = {"callback_query_id": callback_query_id}
     if text:
         payload["text"] = text
-    send_bale("answerCallbackQuery", payload)
+    return send_bale("answerCallbackQuery", payload)
 
 def send_message(chat_id, text, reply_markup=None):
     if not text:
         return None
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
+    if len(text) > 4000:
+        parts = [text[i:i+4000] for i in range(0, len(text), 4000)]
+        for part in parts:
+            send_message(chat_id, part, reply_markup)
+        return {"ok": True}
+    
+    payload = {"chat_id": chat_id, "text": text}
     if reply_markup:
         payload["reply_markup"] = reply_markup
     return send_bale("sendMessage", payload)
@@ -341,7 +365,7 @@ def send_message_with_retry(chat_id, text, reply_markup=None, max_retries=3):
     return None
 
 # =========================================================
-# ۷. سیستم چندزبانه (توسعه یافته)
+# ۷. سیستم چندزبانه (کامل)
 # =========================================================
 LANGS = {
     "fa": {
@@ -528,7 +552,7 @@ def safe_text(lang_code, key, default=None):
     return default if default is not None else LANGS["fa"].get(key, key)
 
 # =========================================================
-# ۸. کیبوردهای اینلاین (توسعه یافته با دکمه جدید)
+# ۸. کیبوردهای اینلاین
 # =========================================================
 def lang_keyboard():
     return {
@@ -586,6 +610,9 @@ def main_menu(chat_id, lang):
 # ۹. عضویت اجباری کانال بله
 # =========================================================
 def check_membership(chat_id):
+    if not CHANNEL_ID:
+        return True
+    
     try:
         result = send_bale("getChatMember", {
             "chat_id": CHANNEL_ID,
@@ -600,7 +627,7 @@ def check_membership(chat_id):
         return False
 
 # =========================================================
-# ۱۰. اتصال هوش مصنوعی DeepSeek (بهبود یافته)
+# ۱۰. اتصال هوش مصنوعی DeepSeek
 # =========================================================
 def ask_deepseek(question, lang):
     if not DEEPSEEK_KEY or DEEPSEEK_KEY == "YOUR_DEEPSEEK_API_KEY":
@@ -650,7 +677,7 @@ def ask_deepseek(question, lang):
         return "سیستم ارتباطی با هوش مصنوعی در حال حاضر با وقفه مواجه شده است."
 
 # =========================================================
-# ۱۱. سیستم جستجوی چندگانه (بهبود یافته با فازی)
+# ۱۱. سیستم جستجوی چندگانه
 # =========================================================
 def smart_search(data_list, query, key="text"):
     query = query.strip().lower()
@@ -669,7 +696,7 @@ def smart_search(data_list, query, key="text"):
         
         if query in search_text:
             results.append(item)
-        else:
+        elif FUZZ_AVAILABLE:
             # جستجوی فازی
             score = fuzz.partial_ratio(query, search_text)
             if score > 60:
@@ -754,7 +781,7 @@ def search_articles(query):
         return f"خطا در جستجوی مقالات: {e}"
 
 # =========================================================
-# ۱۴. سیستم توزیع روزانه پست‌ها (با ذخیره تاریخ)
+# ۱۴. سیستم توزیع روزانه پست‌ها
 # =========================================================
 def next_item(book_name, data_list):
     if not data_list:
@@ -834,8 +861,8 @@ def send_daily_posts():
                 daily_msg = f"🌅 <b>پیام روزانه کانون قرآن</b>\n\n{q_msg or n_msg or s_msg}\n\n🙏 از همراهی شما سپاسگزاریم."
                 send_message(user[0], daily_msg)
                 time.sleep(0.5)
-            except:
-                pass
+            except Exception as e:
+                print(f"⚠️ ارسال به {user[0]} ناموفق: {e}")
         
         print("✅ ارسال روزانه کامل شد.")
     except Exception as e:
@@ -902,7 +929,45 @@ def handle_state_message(chat_id, text, user):
     return False
 
 # =========================================================
-# ۱۶. وب هوک و مدیریت یکپارچه درخواست‌ها
+# ۱۶. توابع کمکی
+# =========================================================
+def get_user_count():
+    conn = db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM users")
+    count = cur.fetchone()[0]
+    conn.close()
+    return count
+
+def get_highest_score():
+    conn = db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT MAX(score) FROM users")
+    score = cur.fetchone()[0]
+    conn.close()
+    return score or 0
+
+# =========================================================
+# ۱۷. مسیرهای تست و سلامت
+# =========================================================
+@app.route("/", methods=["GET", "HEAD"])
+def health():
+    return jsonify({
+        "status": "ok",
+        "service": "labbayk_quranbot",
+        "port": os.getenv("PORT", "10000"),
+        "quran_records": len(QURAN_DATA),
+        "nahj_records": len(NAHJ_DATA),
+        "sahifeh_records": len(SAHIFEH_DATA),
+        "total_users": get_user_count()
+    }), 200
+
+@app.route("/webhook", methods=["GET", "HEAD"])
+def webhook_check():
+    return jsonify({"status": "ok", "message": "Webhook is alive"}), 200
+
+# =========================================================
+# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها
 # =========================================================
 @app.route("/", methods=["POST"])
 def webhook():
@@ -1192,54 +1257,19 @@ def webhook():
         return "OK", 200
 
 # =========================================================
-# ۱۷. توابع کمکی
-# =========================================================
-def get_user_count():
-    conn = db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM users")
-    count = cur.fetchone()[0]
-    conn.close()
-    return count
-
-def get_highest_score():
-    conn = db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT MAX(score) FROM users")
-    score = cur.fetchone()[0]
-    conn.close()
-    return score or 0
-
-# =========================================================
-# ۱۸. مسیرهای تست و سلامت
-# =========================================================
-@app.route("/", methods=["GET", "HEAD"])
-def health():
-    return jsonify({
-        "status": "ok",
-        "service": "labbayk_quranbot",
-        "port": os.getenv("PORT", "10000"),
-        "quran_records": len(QURAN_DATA),
-        "nahj_records": len(NAHJ_DATA),
-        "sahifeh_records": len(SAHIFEH_DATA),
-        "total_users": get_user_count()
-    }), 200
-
-@app.route("/webhook", methods=["GET", "HEAD"])
-def webhook_check():
-    return jsonify({"status": "ok", "message": "Webhook is alive"}), 200
-
-# =========================================================
 # ۱۹. اجرای استارتاپ و سرور وب
 # =========================================================
 def startup():
     init_db()
     load_library()
     
-    # راه‌اندازی نخ پس‌زمینه اسکژولر
-    sched_thread = threading.Thread(target=daily_scheduler, daemon=True)
-    sched_thread.start()
-    print("🟢 اسکژولر روزانه راه‌اندازی شد.")
+    # راه‌اندازی نخ پس‌زمینه اسکژولر (اگر فعال باشد)
+    if os.getenv("ENABLE_SCHEDULER", "false").lower() == "true":
+        sched_thread = threading.Thread(target=daily_scheduler, daemon=True)
+        sched_thread.start()
+        print("🟢 اسکژولر روزانه راه‌اندازی شد.")
+    else:
+        print("🟡 اسکژولر غیرفعال است. (ENABLE_SCHEDULER=false)")
 
 # اجرای مقداردهی اولیه
 startup()
