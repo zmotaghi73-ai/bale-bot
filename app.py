@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۹.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۰.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی معنایی
 """
@@ -22,18 +22,7 @@ from functools import wraps
 import traceback
 
 # =========================================================
-# پشتیبانی از تاریخ شمسی (با fallback به میلادی)
-# =========================================================
-try:
-    import jdatetime
-    HAS_JDATETIME = True
-    logger.info("✅ کتابخانه jdatetime با موفقیت بارگذاری شد.")
-except ImportError:
-    HAS_JDATETIME = False
-    logger.warning("⚠️ کتابخانه jdatetime نصب نیست. از تاریخ میلادی استفاده می‌شود.")
-
-# =========================================================
-# تنظیمات لاگ‌گیری پیشرفته
+# تنظیمات لاگ‌گیری پیشرفته (قبل از هر چیز)
 # =========================================================
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +33,17 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# =========================================================
+# پشتیبانی از تاریخ شمسی (با fallback به میلادی)
+# =========================================================
+try:
+    import jdatetime
+    HAS_JDATETIME = True
+    logger.info("✅ کتابخانه jdatetime با موفقیت بارگذاری شد.")
+except ImportError:
+    HAS_JDATETIME = False
+    logger.warning("⚠️ کتابخانه jdatetime نصب نیست. از تاریخ میلادی استفاده می‌شود.")
 
 app = Flask(__name__)
 
@@ -2478,7 +2478,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "9.0",
+        "version": "10.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "quran_records": len(QURAN_DATA),
