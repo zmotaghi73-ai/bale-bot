@@ -961,9 +961,13 @@ def webhook_check():
 # =========================================================
 # ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها (اصلاح شده)
 # =========================================================
-@app.route("/", methods=["POST"])
-def webhook():
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook_token():
     try:
+        data = request.get_json(force=True, silent=True) or {}
+        # تمام منطق پردازش پیام را اینجا کپی کنید
+        # (همان منطقی که در مسیر / هست)
+        return "OK", 200
         data = request.get_json(force=True, silent=True) or {}
         
         if "message" in data:
