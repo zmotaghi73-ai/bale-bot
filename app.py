@@ -27,7 +27,7 @@ TOKEN = os.getenv("BOT_TOKEN", "")
 if not TOKEN:
     print("⚠️ BOT_TOKEN تنظیم نشده است! ربات کار نخواهد کرد.")
 
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "")
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "sk-090c2a86847c4583944621a5113d0382")  # ✅ کلید جدید DeepSeek
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
@@ -89,17 +89,17 @@ DEFAULT_SAHIFEH_SEED = [
 ]
 
 # =========================================================
-# ۳. احادیث و آیات تصادفی
+# ۳. احادیث و ذکر روزانه (✅ تغییر: حدیث + ذکر)
 # =========================================================
-HADITHS = [
-    "پیامبر اکرم (ص): بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸",
-    "امام علی (ع): در قرآن بیندیشید که بهار دل‌هاست. ✨",
-    "امام صادق (ع): قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖",
-    "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️",
-    "امام باقر (ع): هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹",
-    "پیامبر اکرم (ص): قرآن شفای دردهای شماست. 💚",
-    "امام سجاد (ع): آیات قرآن برای دل‌ها نور و روشنایی است. ☀️",
-    "امام رضا (ع): هر کس در قرآن تدبر کند، خداوند حکمت به او عطا کند. 📚"
+HADITHS_WITH_DHIKR = [
+    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)"},
+    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)"},
+    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)"},
+    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)"},
+    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)"},
+    {"hadith": "قرآن شفای دردهای شماست. 💚", "dhikr": "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ (۱۰۰ بار)"},
+    {"hadith": "آیات قرآن برای دل‌ها نور و روشنایی است. ☀️", "dhikr": "رَبِّ زِدْنِي عِلْمًا (۱۰ بار)"},
+    {"hadith": "هر کس در قرآن تدبر کند، خداوند حکمت به او عطا کند. 📚", "dhikr": "سُبْحَانَ رَبِّيَ الْأَعْلَى (۱۰ بار)"}
 ]
 
 INSTANT_QURAN = [
@@ -142,7 +142,7 @@ def load_library():
         print(f"🔴 خطا در بارگذاری فایل‌های کتابخانه: {e}")
 
 # =========================================================
-# ۵. مدیریت دیتابیس
+# ۵. مدیریت دیتابیس (✅ تغییر: فیلد feedback_score اضافه شد)
 # =========================================================
 def db_conn():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -159,6 +159,7 @@ def init_db():
             score INTEGER DEFAULT 0,
             search_count INTEGER DEFAULT 0,
             streak INTEGER DEFAULT 0,
+            feedback_score INTEGER DEFAULT 0,
             last_active TEXT,
             join_date TEXT DEFAULT CURRENT_TIMESTAMP,
             receive_daily INTEGER DEFAULT 0,
@@ -184,6 +185,20 @@ def init_db():
         )
     """)
     
+    # ✅ جدول جدید برای انتقادات و پیشنهادات
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            user_name TEXT,
+            type TEXT,
+            content TEXT,
+            score INTEGER DEFAULT 0,
+            created_at TEXT,
+            status TEXT DEFAULT 'pending'
+        )
+    """)
+    
     for book in ["quran", "nahj", "sahifeh"]:
         cur.execute("INSERT OR IGNORE INTO publish_state (book_name, last_index) VALUES (?, 0)", (book,))
     
@@ -194,7 +209,7 @@ def init_db():
 def get_user(chat_id):
     conn = db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT name, lang, score, search_count, streak, last_active, join_date, receive_daily, state FROM users WHERE chat_id = ?", (chat_id,))
+    cur.execute("SELECT name, lang, score, search_count, streak, feedback_score, last_active, join_date, receive_daily, state FROM users WHERE chat_id = ?", (chat_id,))
     row = cur.fetchone()
     conn.close()
     if row:
@@ -204,12 +219,13 @@ def get_user(chat_id):
             "score": row[2] or 0,
             "search_count": row[3] or 0,
             "streak": row[4] or 0,
-            "last_active": row[5] or "",
-            "join_date": row[6] or "",
-            "receive_daily": row[7] or 0,
-            "state": row[8] or "none"
+            "feedback_score": row[5] or 0,
+            "last_active": row[6] or "",
+            "join_date": row[7] or "",
+            "receive_daily": row[8] or 0,
+            "state": row[9] or "none"
         }
-    return {"name": "", "lang": "fa", "score": 0, "search_count": 0, "streak": 0, "last_active": "", "join_date": "", "receive_daily": 0, "state": "none"}
+    return {"name": "", "lang": "fa", "score": 0, "search_count": 0, "streak": 0, "feedback_score": 0, "last_active": "", "join_date": "", "receive_daily": 0, "state": "none"}
 
 def ensure_user(chat_id, name=""):
     conn = db_conn()
@@ -221,7 +237,7 @@ def ensure_user(chat_id, name=""):
     conn.commit()
     conn.close()
 
-def update_user(chat_id, name=None, lang=None, score=None, search_count=None, streak=None, receive_daily=None, state=None, score_add=None, search_add=None):
+def update_user(chat_id, name=None, lang=None, score=None, search_count=None, streak=None, feedback_score=None, receive_daily=None, state=None, score_add=None, search_add=None):
     conn = db_conn()
     cur = conn.cursor()
     if name is not None:
@@ -235,6 +251,8 @@ def update_user(chat_id, name=None, lang=None, score=None, search_count=None, st
         cur.execute("UPDATE users SET search_count=? WHERE chat_id=?", (search_count, chat_id))
     if streak is not None:
         cur.execute("UPDATE users SET streak=? WHERE chat_id=?", (streak, chat_id))
+    if feedback_score is not None:
+        cur.execute("UPDATE users SET feedback_score=? WHERE chat_id=?", (feedback_score, chat_id))
     if receive_daily is not None:
         cur.execute("UPDATE users SET receive_daily=? WHERE chat_id=?", (receive_daily, chat_id))
     if state is not None:
@@ -314,7 +332,7 @@ def update_pending_status(content_id, status):
     conn.close()
 
 # =========================================================
-# ۶. ابزارهای ارسال پیام به بله (اصلاح شده)
+# ۶. ابزارهای ارسال پیام به بله
 # =========================================================
 def send_bale(method, data):
     if not TOKEN:
@@ -365,7 +383,7 @@ def send_message_with_retry(chat_id, text, reply_markup=None, max_retries=3):
     return None
 
 # =========================================================
-# ۷. سیستم چندزبانه (کامل)
+# ۷. سیستم چندزبانه (✅ تغییر: دکمه feedback و daily_toggle اضافه شد)
 # =========================================================
 LANGS = {
     "fa": {
@@ -379,8 +397,8 @@ LANGS = {
         "admin_msg_prompt": "📩 پیامت رو بنویس تا مستقیم برای ادمین ارسال کنم:",
         "admin_msg_sent": "✅ پیامت با موفقیت برای ادمین ارسال شد.",
         "under_construction": "🚧 این بخش هنوز در حال تکمیل است. به‌زودی فعال می‌شود.",
-        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n📅 تاریخ عضویت: {join_date}",
-        "about": "این ربات توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است. ❤️\n\n📚 امکانات:\n• جستجو در قرآن، نهج‌البلاغه و صحیفه سجادیه\n• هوش مصنوعی DeepSeek\n• جستجوی وب و مقالات علمی\n• حدیث و ذکر روزانه\n• قرآن در لحظه\n• کارنامه و لیگ قرآنی\n• ارسال روزانه به کانال",
+        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}",
+        "about": "این ربات توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است. ❤️\n\n📚 امکانات:\n• جستجو در قرآن، نهج‌البلاغه و صحیفه سجادیه\n• هوش مصنوعی DeepSeek\n• جستجوی وب و مقالات علمی\n• حدیث و ذکر روزانه\n• قرآن در لحظه\n• کارنامه و لیگ قرآنی\n• ارسال روزانه به کانال\n• ارسال پیشنهاد و انتقاد با امتیاز",
         "daily_enable": "✅ دریافت روزانه فعال شد. هر روز محتوای جدید برایت ارسال می‌شود.",
         "daily_disable": "❌ دریافت روزانه غیرفعال شد.",
         "daily_toggle": "🔔 دریافت روزانه",
@@ -389,7 +407,7 @@ LANGS = {
         "web_search_prompt": "🌐 عبارت موردنظرت رو برای جستجوی وب بفرست.",
         "article_prompt": "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.",
         "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}",
-        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}",
+        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}",
         "events_text": "📢 رویدادها و مسابقات کانون:\n\n🔹 جشنواره قرآن و عترت\n🔹 مسابقات حفظ و مفاهیم قرآن\n🔹 کارگاه‌های تفسیر و تدبر\n🔹 برنامه‌های ماه رمضان\n\nبرای اطلاعات بیشتر به کانال مراجعه کنید.",
         "unknown_error": "⚠️ یک خطای کوچک رخ داد. دوباره امتحان کن.",
         "web_search_result": "🌐 نتایج جستجوی وب برای «{query}»:\n\n{results}",
@@ -402,12 +420,13 @@ LANGS = {
             "hadith": "🕊️ حدیث و ذکر روز",
             "instant_quran": "✨ قرآن در لحظه",
             "events": "📢 رویدادها و مسابقات",
+            "feedback": "📝 پیشنهاد/انتقاد",  # ✅ دکمه جدید
             "admin_msg": "📨 ارسال پیام به ادمین",
             "stats": "📊 آمار و امتیاز من",
             "league": "🏆 لیگ قرآنی",
             "scorecard": "📋 کارنامه و رتبه",
             "change_lang": "🌍 تغییر زبان",
-            "daily_toggle": "🔔 دریافت روزانه",
+            "daily_toggle": "🔔 دریافت روزانه",  # ✅ دکمه جدید
             "about": "ℹ️ درباره ربات"
         }
     },
@@ -422,7 +441,7 @@ LANGS = {
         "admin_msg_prompt": "📩 Send your message and I’ll forward it to admin:",
         "admin_msg_sent": "✅ Your message was sent to admin.",
         "under_construction": "🚧 This section is under construction.",
-        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n📅 Join Date: {join_date}",
+        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}",
         "about": "This bot is designed by the Quran & Etrat Center of Shiraz University of Medical Sciences. ❤️",
         "daily_enable": "✅ Daily receive enabled. You will receive new content every day.",
         "daily_disable": "❌ Daily receive disabled.",
@@ -432,7 +451,7 @@ LANGS = {
         "web_search_prompt": "🌐 Send your web search query.",
         "article_prompt": "📚 Send your article topic or keyword.",
         "league_text": "🏆 Quran League:\n\n{leaderboard}",
-        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}",
+        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}",
         "events_text": "📢 Events and contests:\n\n🔹 Quran and Etrat Festival\n🔹 Memorization contests\n🔹 Interpretation workshops\n🔹 Ramadan programs\n\nFor more info, visit our channel.",
         "unknown_error": "⚠️ A small error occurred. Please try again.",
         "web_search_result": "🌐 Web search results for «{query}»:\n\n{results}",
@@ -445,12 +464,13 @@ LANGS = {
             "hadith": "🕊️ Hadith & Daily Dhikr",
             "instant_quran": "✨ Instant Quran",
             "events": "📢 Events & Contests",
+            "feedback": "📝 Suggestion/Critique",  # ✅ دکمه جدید
             "admin_msg": "📨 Message Admin",
             "stats": "📊 My Stats",
             "league": "🏆 Quran League",
             "scorecard": "📋 Scorecard & Rank",
             "change_lang": "🌍 Change Language",
-            "daily_toggle": "🔔 Daily Receive",
+            "daily_toggle": "🔔 Daily Receive",  # ✅ دکمه جدید
             "about": "ℹ️ About Bot"
         }
     },
@@ -465,7 +485,7 @@ LANGS = {
         "admin_msg_prompt": "📩 اكتب رسالتك ليتم إرسالها إلى المشرف:",
         "admin_msg_sent": "✅ تم إرسال رسالتك إلى المشرف.",
         "under_construction": "🚧 هذا القسم قيد التطوير.",
-        "stats": "📊 إحصاءاتك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n📖 البحوث: {search_count}\n🔥 الأيام المتتالية: {streak}\n📅 تاريخ الانضمام: {join_date}",
+        "stats": "📊 إحصاءاتك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n📖 البحوث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n📅 تاريخ الانضمام: {join_date}",
         "about": "تم تصميم هذا البوت بواسطة كانون القرآن والعترة بجامعة شيراز للعلوم الطبية. ❤️",
         "daily_enable": "✅ تم تفعيل الاستلام اليومي. ستتلقى محتوى جديداً كل يوم.",
         "daily_disable": "❌ تم إلغاء تفعيل الاستلام اليومي.",
@@ -475,7 +495,7 @@ LANGS = {
         "web_search_prompt": "🌐 أرسل عبارة البحث.",
         "article_prompt": "📚 أرسل موضوع المقال أو الكلمة المفتاحية.",
         "league_text": "🏆 الدوري القرآني:\n\n{leaderboard}",
-        "scorecard_text": "📋 كشف الدرجات والترتيب:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n🎯 الترتيب: {rank}\n📖 البحوث: {search_count}\n🔥 الأيام المتتالية: {streak}",
+        "scorecard_text": "📋 كشف الدرجات والترتيب:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n🎯 الترتيب: {rank}\n📖 البحوث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}",
         "events_text": "📢 الفعاليات والمسابقات:\n\n🔹 مهرجان القرآن والعترة\n🔹 مسابقات الحفظ\n🔹 ورش التفسير\n🔹 برامج شهر رمضان\n\nللمزيد، تفضل بزيارة قناتنا.",
         "unknown_error": "⚠️ حدث خطأ صغير. حاول مرة أخرى.",
         "web_search_result": "🌐 نتائج البحث على الويب لـ «{query}»:\n\n{results}",
@@ -488,12 +508,13 @@ LANGS = {
             "hadith": "🕊️ حديث وذكر اليوم",
             "instant_quran": "✨ قرآن الآن",
             "events": "📢 الفعاليات والمسابقات",
+            "feedback": "📝 اقتراح/انتقاد",  # ✅ دکمه جدید
             "admin_msg": "📨 إرسال رسالة للمشرف",
             "stats": "📊 إحصاءاتي",
             "league": "🏆 الدوري القرآني",
             "scorecard": "📋 كشف الدرجات والترتيب",
             "change_lang": "🌍 تغيير اللغة",
-            "daily_toggle": "🔔 استلام يومي",
+            "daily_toggle": "🔔 استلام يومي",  # ✅ دکمه جدید
             "about": "ℹ️ حول البوت"
         }
     },
@@ -508,7 +529,7 @@ LANGS = {
         "admin_msg_prompt": "📩 Mesajını yaz, yöneticine ileteyim:",
         "admin_msg_sent": "✅ Mesajın yöneticiye gönderildi.",
         "under_construction": "🚧 Bu bölüm yapım aşamasında.",
-        "stats": "📊 İstatistiklerin:\n\n👤 Ad: {name}\n🏆 Puan: {score}\n📖 Aramalar: {search_count}\n🔥 Seri: {streak}\n📅 Katılma Tarihi: {join_date}",
+        "stats": "📊 İstatistiklerin:\n\n👤 Ad: {name}\n🏆 Puan: {score}\n📖 Aramalar: {search_count}\n🔥 Seri: {streak}\n⭐ Öneri Puanı: {feedback_score}\n📅 Katılma Tarihi: {join_date}",
         "about": "Bu bot, Şiraz Tıp Bilimleri Üniversitesi Kur'an ve Etrat Merkezi tarafından hazırlanmıştır. ❤️",
         "daily_enable": "✅ Günlük alım etkinleştirildi. Her gün yeni içerik alacaksın.",
         "daily_disable": "❌ Günlük alım devre dışı bırakıldı.",
@@ -518,7 +539,7 @@ LANGS = {
         "web_search_prompt": "🌐 Web arama sorgunu gönder.",
         "article_prompt": "📚 Makale konusu veya anahtar kelime gönder.",
         "league_text": "🏆 Kur'an Ligi:\n\n{leaderboard}",
-        "scorecard_text": "📋 Karnen ve sıralaman:\n\n👤 Ad: {name}\n🏆 Puan: {score}\n🎯 Sıra: {rank}\n📖 Aramalar: {search_count}\n🔥 Seri: {streak}",
+        "scorecard_text": "📋 Karnen ve sıralaman:\n\n👤 Ad: {name}\n🏆 Puan: {score}\n🎯 Sıra: {rank}\n📖 Aramalar: {search_count}\n🔥 Seri: {streak}\n⭐ Öneri Puanı: {feedback_score}",
         "events_text": "📢 Etkinlikler ve yarışmalar:\n\n🔹 Kur'an ve Etrat Festivali\n🔹 Ezber yarışmaları\n🔹 Tefsir çalıştayları\n🔹 Ramazan programları\n\nDetaylar için kanalımızı ziyaret edin.",
         "unknown_error": "⚠️ Küçük bir hata oluştu. Tekrar dene.",
         "web_search_result": "🌐 «{query}» için web arama sonuçları:\n\n{results}",
@@ -531,12 +552,13 @@ LANGS = {
             "hadith": "🕊️ Hadis ve Günlük Zikir",
             "instant_quran": "✨ Anlık Kur'an",
             "events": "📢 Etkinlikler ve Yarışmalar",
+            "feedback": "📝 Öneri/Eleştiri",  # ✅ دکمه جدید
             "admin_msg": "📨 Yöneticiye Mesaj",
             "stats": "📊 İstatistiklerim",
             "league": "🏆 Kur'an Ligi",
             "scorecard": "📋 Karne ve Sıralama",
             "change_lang": "🌍 Dili Değiştir",
-            "daily_toggle": "🔔 Günlük Alım",
+            "daily_toggle": "🔔 Günlük Alım",  # ✅ دکمه جدید
             "about": "ℹ️ Bot Hakkında"
         }
     }
@@ -552,19 +574,15 @@ def safe_text(lang_code, key, default=None):
     return default if default is not None else LANGS["fa"].get(key, key)
 
 # =========================================================
-# ۸. کیبوردهای اینلاین
+# ۸. کیبوردهای اینلاین (✅ تغییر: چیدمان جدید ۲-۳ تایی)
 # =========================================================
 def lang_keyboard():
     return {
         "inline_keyboard": [
-            [
-                {"text": "🇮🇷 فارسی", "callback_data": "setlang_fa"},
-                {"text": "🇬🇧 English", "callback_data": "setlang_en"}
-            ],
-            [
-                {"text": "🇸🇦 العربية", "callback_data": "setlang_ar"},
-                {"text": "🇹🇷 Türkçe", "callback_data": "setlang_tr"}
-            ]
+            [{"text": "🇮🇷 فارسی", "callback_data": "setlang_fa"}],
+            [{"text": "🇬🇧 English", "callback_data": "setlang_en"}],
+            [{"text": "🇸🇦 العربية", "callback_data": "setlang_ar"}],
+            [{"text": "🇹🇷 Türkçe", "callback_data": "setlang_tr"}]
         ]
     }
 
@@ -583,28 +601,43 @@ def back_menu_keyboard(lang):
 
 def main_menu(chat_id, lang):
     labels = safe_lang_dict(lang)["menu_labels"]
+    # ✅ چیدمان جدید: هر ردیف ۲ دکمه
     buttons = [
-        [{"text": labels["search_quran"], "callback_data": "menu_search_quran"}],
-        [{"text": labels["ai"], "callback_data": "menu_ai"}],
-        [{"text": labels["web"], "callback_data": "menu_web"}],
-        [{"text": labels["articles"], "callback_data": "menu_articles"}],
-        [{"text": labels["hadith"], "callback_data": "menu_hadith"}],
-        [{"text": labels["instant_quran"], "callback_data": "menu_instant_quran"}],
-        [{"text": labels["events"], "callback_data": "menu_events"}],
-        [{"text": labels["admin_msg"], "callback_data": "menu_admin_msg"}],
-        [{"text": labels["stats"], "callback_data": "menu_stats"}],
-        [{"text": labels["league"], "callback_data": "menu_league"}],
-        [{"text": labels["scorecard"], "callback_data": "menu_scorecard"}],
-        [{"text": labels["daily_toggle"], "callback_data": "menu_daily_toggle"}],
-        [{"text": labels["change_lang"], "callback_data": "menu_change_lang"}],
-        [{"text": labels["about"], "callback_data": "menu_about"}],
+        [{"text": labels["search_quran"], "callback_data": "menu_search_quran"},
+         {"text": labels["ai"], "callback_data": "menu_ai"}],
+        [{"text": labels["web"], "callback_data": "menu_web"},
+         {"text": labels["articles"], "callback_data": "menu_articles"}],
+        [{"text": labels["hadith"], "callback_data": "menu_hadith"},
+         {"text": labels["instant_quran"], "callback_data": "menu_instant_quran"}],
+        [{"text": labels["events"], "callback_data": "menu_events"},
+         {"text": labels["feedback"], "callback_data": "menu_feedback"}],  # ✅ دکمه جدید
+        [{"text": labels["stats"], "callback_data": "menu_stats"},
+         {"text": labels["league"], "callback_data": "menu_league"}],
+        [{"text": labels["scorecard"], "callback_data": "menu_scorecard"},
+         {"text": labels["daily_toggle"], "callback_data": "menu_daily_toggle"}],  # ✅ دکمه جدید
+        [{"text": labels["change_lang"], "callback_data": "menu_change_lang"},
+         {"text": labels["about"], "callback_data": "menu_about"}],
         [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
     ]
     
+    # ✅ منوی ادمین
     if chat_id == ADMIN_ID:
         buttons.append([{"text": "🛠️ پنل ادمین", "callback_data": "admin_panel"}])
     
     return {"inline_keyboard": buttons}
+
+# ✅ پنل ادمین پیشرفته (۶ دکمه)
+def admin_menu(chat_id, lang="fa"):
+    return {
+        "inline_keyboard": [
+            [{"text": "📊 آمار ربات", "callback_data": "admin_stats"}],
+            [{"text": "📩 لیست انتقادات", "callback_data": "admin_feedbacks"}],
+            [{"text": "📢 ارسال همگانی", "callback_data": "admin_broadcast"}],
+            [{"text": "👥 لیست کاربران", "callback_data": "admin_users"}],
+            [{"text": "⏰ تنظیمات زمان‌بندی", "callback_data": "admin_schedule"}],
+            [{"text": "🔄 منوی اصلی", "callback_data": "back_main"}]
+        ]
+    }
 
 # =========================================================
 # ۹. عضویت اجباری کانال بله
@@ -627,54 +660,33 @@ def check_membership(chat_id):
         return False
 
 # =========================================================
-# ۱۰. اتصال هوش مصنوعی DeepSeek
+# ۱۰. اتصال هوش مصنوعی DeepSeek (✅ کلید جدید)
 # =========================================================
 def ask_deepseek(question, lang):
     if not DEEPSEEK_KEY or DEEPSEEK_KEY == "YOUR_DEEPSEEK_API_KEY":
-        return "کلید API هوش مصنوعی DeepSeek تعریف نشده است."
-
-    language_name = {
-        "fa": "Persian",
-        "en": "English",
-        "ar": "Arabic",
-        "tr": "Turkish"
-    }.get(lang, "Persian")
-
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_KEY}",
-        "Content-Type": "application/json"
-    }
-
+        return "🔑 کلید API هوش مصنوعی DeepSeek تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
+    
+    language_name = {"fa": "Persian", "en": "English", "ar": "Arabic", "tr": "Turkish"}.get(lang, "Persian")
+    
+    headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
     payload = {
         "model": "deepseek-chat",
         "messages": [
-            {
-                "role": "system",
-                "content": f"You are a warm, respectful, accurate assistant for a Quranic student bot at Shiraz University of Medical Sciences. Reply in {language_name}. Keep the answer useful, friendly, and well-formatted. Use bullet points when helpful."
-            },
-            {
-                "role": "user",
-                "content": question
-            }
+            {"role": "system", "content": f"You are a warm, respectful, accurate assistant for a Quranic student bot at Shiraz University of Medical Sciences. Reply in {language_name}. Keep the answer useful, friendly, and well-formatted."},
+            {"role": "user", "content": question}
         ],
         "temperature": 0.7
     }
-
+    
     try:
-        res = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=40
-        )
+        res = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=40)
         data = res.json()
-        if "choices" in data and len(data["choices"]) > 0:
+        if "choices" in data and data["choices"]:
             return data["choices"][0]["message"]["content"]
-        print("DeepSeek unexpected response:", data)
-        return "پاسخی از هوش مصنوعی دریافت نشد. لطفاً بعداً تلاش فرمایید."
+        return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً بعداً تلاش کنید."
     except Exception as e:
-        print("DeepSeek error:", e)
-        return "سیستم ارتباطی با هوش مصنوعی در حال حاضر با وقفه مواجه شده است."
+        print(f"DeepSeek error: {e}")
+        return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً بعداً تلاش کنید."
 
 # =========================================================
 # ۱۱. سیستم جستجوی چندگانه
@@ -730,14 +742,14 @@ def search_library(q, user_id):
     return results[:10]
 
 # =========================================================
-# ۱۲. جستجوی وب (DuckDuckGo)
+# ۱۲. جستجوی وب (✅ اصلاح: timeout افزایش یافته)
 # =========================================================
 def search_web(query):
     try:
         url = "https://html.duckduckgo.com/html/"
         data = {"q": query}
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        response = requests.post(url, data=data, headers=headers, timeout=15)
+        response = requests.post(url, data=data, headers=headers, timeout=20)
         
         results = []
         pattern = r'<a rel="nofollow" class="result__a" href="(.*?)".*?>(.*?)</a>'
@@ -748,10 +760,12 @@ def search_web(query):
             if clean_title and link.startswith('http'):
                 results.append(f"🔗 <a href='{link}'>{clean_title}</a>")
         
-        return '\n\n'.join(results) if results else "نتیجه‌ای یافت نشد."
+        if results:
+            return '\n\n'.join(results)
+        return "🔍 نتیجه‌ای یافت نشد. لطفاً عبارت دیگری را امتحان کنید."
     except Exception as e:
         print(f"Web search error: {e}")
-        return f"خطا در جستجوی وب: {e}"
+        return f"⚠️ خطا در جستجوی وب: {str(e)[:100]}\n\nلطفاً بعداً تلاش کنید."
 
 # =========================================================
 # ۱۳. جستجوی مقالات علمی (OpenAlex)
@@ -869,7 +883,7 @@ def daily_scheduler():
         time.sleep(24 * 60 * 60)
 
 # =========================================================
-# ۱۵. مدیریت پردازش وضعیت‌های خاص کاربر
+# ۱۵. مدیریت پردازش وضعیت‌های خاص کاربر (✅ توسعه یافته)
 # =========================================================
 def handle_state_message(chat_id, text, user):
     lang = user["lang"]
@@ -916,6 +930,38 @@ def handle_state_message(chat_id, text, user):
         send_message(chat_id, safe_text(lang, "article_result").format(query=text, results=result), main_menu(chat_id, lang))
         update_user(chat_id, state="none")
         return True
+    
+    # ✅ حالت جدید: انتقاد و پیشنهاد
+    if state == "waiting_feedback":
+        update_user(chat_id, state="none")
+        
+        # امتیازدهی هوشمند
+        score = 0
+        if len(text) > 20:
+            score += 5
+        if "لطفا" in text or "متشکرم" in text or "خواهش" in text:
+            score += 3
+        if "قرآن" in text or "حدیث" in text or "دعا" in text:
+            score += 2
+        if "پیشنهاد" in text or "انتقاد" in text or "بهبود" in text:
+            score += 3
+        
+        # ذخیره در دیتابیس
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO feedbacks (user_id, user_name, type, content, score, created_at) VALUES (?, ?, 'suggestion', ?, ?, CURRENT_TIMESTAMP)", 
+                   (chat_id, name, text, score))
+        conn.commit()
+        conn.close()
+        
+        if score >= 7:
+            update_user(chat_id, score_add=score, feedback_score=score)
+            send_message(chat_id, f"✅ پیشنهاد شما ثبت شد. {score} امتیاز به شما تعلق گرفت!", main_menu(chat_id, lang))
+            send_message(ADMIN_ID, f"📩 پیشنهاد جدید:\n👤 {name}\n📝 {text}\n⭐ امتیاز: {score}")
+        else:
+            send_message(chat_id, "✅ پیشنهاد شما ثبت شد. برای دریافت امتیاز، پیشنهاد خود را دقیق‌تر و تأثیرگذارتر بنویسید.", main_menu(chat_id, lang))
+            send_message(ADMIN_ID, f"📩 پیشنهاد جدید:\n👤 {name}\n📝 {text}\n⭐ امتیاز: {score}")
+        return True
 
     return False
 
@@ -938,6 +984,14 @@ def get_highest_score():
     conn.close()
     return score or 0
 
+def get_all_users(limit=100):
+    conn = db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT chat_id, name, score FROM users ORDER BY score DESC LIMIT ?", (limit,))
+    users = cur.fetchall()
+    conn.close()
+    return users
+
 # =========================================================
 # ۱۷. مسیرهای تست و سلامت
 # =========================================================
@@ -958,7 +1012,7 @@ def webhook_check():
     return jsonify({"status": "ok", "message": "Webhook is alive"}), 200
 
 # =========================================================
-# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها (اصلاح شده نهایی)
+# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها (✅ نسخه نهایی کامل)
 # =========================================================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook_token():
@@ -988,7 +1042,7 @@ def webhook_token():
                 update_user(chat_id, state="none")
                 send_message(
                     chat_id,
-                    safe_text(lang, "select_lang", "لطفاً زبان خود را انتخاب کنید:"),
+                    "🌍 لطفاً زبان خود را انتخاب کنید:",
                     lang_keyboard()
                 )
                 return "OK", 200
@@ -997,7 +1051,7 @@ def webhook_token():
                 if not check_membership(chat_id):
                     send_message(
                         chat_id,
-                        safe_text(lang, "force_join").format(channel=CHANNEL_ID),
+                        f"🌸 سلام {first_name} جان!\n\nبرای استفاده از ربات، لطفاً ابتدا در کانال کانون قرآن عضو شوید:\n🔗 {CHANNEL_ID}\n\nپس از عضویت، دوباره /start را بزنید.",
                         join_keyboard()
                     )
                     return "OK", 200
@@ -1012,11 +1066,31 @@ def webhook_token():
                 update_user(chat_id, state="none")
                 return "OK", 200
 
-            send_message(
-                chat_id,
-                safe_text(lang, "welcome").format(name=first_name),
-                main_menu(chat_id, lang)
-            )
+            # ✅ پیام خوش‌آمدگویی جذاب بر اساس زمان روز
+            hour = datetime.now().hour
+            if 5 <= hour < 12:
+                greeting = "صبح بخیر 🌅"
+            elif 12 <= hour < 17:
+                greeting = "ظهر بخیر ☀️"
+            elif 17 <= hour < 21:
+                greeting = "عصر بخیر 🌇"
+            else:
+                greeting = "شب بخیر 🌙"
+            
+            welcome_text = f"""{greeting} {first_name} جان! 😍
+
+به ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش آمدی.
+
+✨ اینجا می‌تونی:
+• قرآن رو جستجو کنی و تفسیر ببینی 📖
+• از هوش مصنوعی سوال بپرسی 🤖
+• وب رو جستجو کنی 🌐
+• مقالات علمی پیدا کنی 📚
+• حدیث و ذکر روزانه بخونی 🕊️
+• پیشنهاد و انتقاد بذاری و امتیاز بگیری ⭐
+
+👇 از منوی زیر استفاده کن:"""
+            send_message(chat_id, welcome_text, main_menu(chat_id, lang))
             return "OK", 200
 
         elif "callback_query" in data:
@@ -1040,9 +1114,11 @@ def webhook_token():
             user = get_user(chat_id)
             lang = user["lang"]
 
-            # پاسخ به callback برای همه موارد
             answer_callback(cb_id)
 
+            # ===========================
+            # تغییر زبان
+            # ===========================
             if cb_data.startswith("setlang_"):
                 new_lang = cb_data.replace("setlang_", "").strip()
                 if new_lang not in LANGS:
@@ -1055,103 +1131,244 @@ def webhook_token():
                 if chat_id != ADMIN_ID and not check_membership(chat_id):
                     send_message(
                         chat_id,
-                        safe_text(lang, "force_join").format(channel=CHANNEL_ID),
+                        f"🌸 برای استفاده از ربات، لطفاً ابتدا عضو کانال شوید:\n{CHANNEL_ID}",
                         join_keyboard()
                     )
                 else:
-                    send_message(
-                        chat_id,
-                        safe_text(lang, "welcome").format(name=first_name),
-                        main_menu(chat_id, lang)
-                    )
+                    hour = datetime.now().hour
+                    if 5 <= hour < 12:
+                        greeting = "صبح بخیر 🌅"
+                    elif 12 <= hour < 17:
+                        greeting = "ظهر بخیر ☀️"
+                    elif 17 <= hour < 21:
+                        greeting = "عصر بخیر 🌇"
+                    else:
+                        greeting = "شب بخیر 🌙"
+                    
+                    welcome_text = f"{greeting} {first_name} جان! 😍\n\nبه ربات کانون قرآن و عترت خوش آمدی.\nاز منوی زیر استفاده کن:"
+                    send_message(chat_id, welcome_text, main_menu(chat_id, lang))
                 return "OK", 200
 
+            # ===========================
+            # تأیید عضویت
+            # ===========================
             if cb_data == "check_join":
                 if check_membership(chat_id):
                     send_message(
                         chat_id,
-                        safe_text(lang, "joined_success"),
+                        "✅ عضویتت تایید شد. خوش اومدی زندگی! 🌸",
                         main_menu(chat_id, lang)
                     )
                 else:
                     send_message(
                         chat_id,
-                        safe_text(lang, "not_joined_yet"),
+                        "🥲 هنوز عضویتت تایید نشده. اول عضو کانال شو، بعد دوباره روی دکمه تأیید بزن.",
                         join_keyboard()
                     )
                 return "OK", 200
 
+            # ===========================
+            # بازگشت به منوی اصلی
+            # ===========================
             if cb_data == "back_main":
                 update_user(chat_id, state="none")
+                hour = datetime.now().hour
+                if 5 <= hour < 12:
+                    greeting = "صبح بخیر 🌅"
+                elif 12 <= hour < 17:
+                    greeting = "ظهر بخیر ☀️"
+                elif 17 <= hour < 21:
+                    greeting = "عصر بخیر 🌇"
+                else:
+                    greeting = "شب بخیر 🌙"
+                
                 send_message(
                     chat_id,
-                    safe_text(lang, "welcome").format(name=first_name),
+                    f"{greeting} {first_name} جان! 🍃\nبه منوی اصلی خوش اومدی.",
                     main_menu(chat_id, lang)
                 )
                 return "OK", 200
 
+            # ===========================
+            # بررسی عضویت
+            # ===========================
             if chat_id != ADMIN_ID and not check_membership(chat_id):
                 send_message(
                     chat_id,
-                    safe_text(lang, "force_join").format(channel=CHANNEL_ID),
+                    f"🌸 لطفاً ابتدا در کانال {CHANNEL_ID} عضو شوید.",
                     join_keyboard()
                 )
                 return "OK", 200
 
+            # ===========================
+            # پنل ادمین
+            # ===========================
             if cb_data == "admin_panel":
                 if chat_id != ADMIN_ID:
                     send_message(chat_id, "⛔ دسترسی غیرمجاز.")
                     return "OK", 200
+                
+                conn = db_conn()
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM users")
+                total_users = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM feedbacks WHERE status='pending'")
+                pending_feedback = cur.fetchone()[0]
+                conn.close()
+                
+                admin_text = f"""🛠️ <b>پنل ادمین</b>
 
-                admin_text = (
-                    "🛠️ <b>پنل ادمین</b>\n\n"
-                    f"📖 آیات قرآن: {len(QURAN_DATA)}\n"
-                    f"📙 فرازهای نهج‌البلاغه: {len(NAHJ_DATA)}\n"
-                    f"📗 ادعیه صحیفه: {len(SAHIFEH_DATA)}\n\n"
-                    "📊 آمار کاربران:\n"
-                    f"👥 کل کاربران: {get_user_count()}\n"
-                    f"🏆 برترین امتیاز: {get_highest_score()}\n\n"
-                    "🔧 برای ارسال همگانی:\n"
-                    "دستور /broadcast [متن] را بفرستید."
-                )
-                send_message(chat_id, admin_text, main_menu(chat_id, lang))
+📊 آمار کلی:
+👥 کاربران: {total_users}
+📩 انتقادات در انتظار: {pending_feedback}
+🏆 برترین امتیاز: {get_highest_score()}
+
+📌 از منوی زیر مدیریت کن:"""
+                send_message(chat_id, admin_text, admin_menu(chat_id, lang))
                 return "OK", 200
 
+            # ===========================
+            # آمار ادمین
+            # ===========================
+            if cb_data == "admin_stats":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+                
+                conn = db_conn()
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM users")
+                total_users = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM feedbacks WHERE status='pending'")
+                pending_feedback = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM feedbacks")
+                total_feedback = cur.fetchone()[0]
+                conn.close()
+                
+                stats_text = f"""📊 <b>آمار کامل ربات</b>
+
+👥 کل کاربران: {total_users}
+📩 انتقادات در انتظار: {pending_feedback}
+📝 کل انتقادات: {total_feedback}
+🏆 برترین امتیاز: {get_highest_score()}
+
+📅 تاریخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
+                send_message(chat_id, stats_text, admin_menu(chat_id, lang))
+                return "OK", 200
+
+            # ===========================
+            # لیست انتقادات
+            # ===========================
+            if cb_data == "admin_feedbacks":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+                
+                conn = db_conn()
+                cur = conn.cursor()
+                cur.execute("SELECT id, user_name, content, score, created_at FROM feedbacks WHERE status='pending' ORDER BY id DESC LIMIT 10")
+                feedbacks = cur.fetchall()
+                conn.close()
+                
+                if feedbacks:
+                    msg = "📩 لیست انتقادات و پیشنهادات:\n\n"
+                    for f in feedbacks:
+                        msg += f"📌 {f[1]}\n📝 {f[2][:100]}...\n⭐ امتیاز: {f[3]}\n📅 {f[4]}\n\n"
+                    send_message(chat_id, msg, admin_menu(chat_id, lang))
+                else:
+                    send_message(chat_id, "📩 هیچ انتقاد یا پیشنهاد جدیدی وجود ندارد.", admin_menu(chat_id, lang))
+                return "OK", 200
+
+            # ===========================
+            # ارسال همگانی
+            # ===========================
+            if cb_data == "admin_broadcast":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+                update_user(chat_id, state="waiting_broadcast")
+                send_message(chat_id, "📢 لطفاً متن اطلاع‌رسانی عمومی را ارسال کنید.")
+                return "OK", 200
+
+            # ===========================
+            # لیست کاربران
+            # ===========================
+            if cb_data == "admin_users":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+                
+                users = get_all_users(20)
+                if users:
+                    msg = "👥 لیست کاربران (۲۰ نفر برتر):\n\n"
+                    for i, (uid, name, score) in enumerate(users, 1):
+                        msg += f"{i}. {name} — {score} امتیاز\n"
+                    send_message(chat_id, msg, admin_menu(chat_id, lang))
+                else:
+                    send_message(chat_id, "👥 هنوز کاربری ثبت نشده است.", admin_menu(chat_id, lang))
+                return "OK", 200
+
+            # ===========================
+            # تنظیمات زمان‌بندی
+            # ===========================
+            if cb_data == "admin_schedule":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+                schedule_status = "فعال ✅" if os.getenv("ENABLE_SCHEDULER", "false").lower() == "true" else "غیرفعال ❌"
+                send_message(chat_id, f"⏰ تنظیمات زمان‌بندی:\n\nوضعیت: {schedule_status}\n\nبرای تغییر، متغیر ENABLE_SCHEDULER را در Render تنظیم کنید.", admin_menu(chat_id, lang))
+                return "OK", 200
+
+            # ===========================
+            # دکمه‌های منوی اصلی
+            # ===========================
             if cb_data.startswith("menu_"):
                 action = cb_data.replace("menu_", "")
                 
                 if action == "search_quran":
                     update_user(chat_id, state="waiting_quran_search")
-                    send_message(chat_id, safe_text(lang, "search_quran_prompt"), back_menu_keyboard(lang))
+                    send_message(chat_id, "📖 کلمه یا عبارت قرآنی موردنظرت رو بفرست تا جستجو کنیم.", back_menu_keyboard(lang))
                 
                 elif action == "ai":
                     update_user(chat_id, state="waiting_ai")
-                    send_message(chat_id, safe_text(lang, "ai_prompt"), back_menu_keyboard(lang))
+                    send_message(chat_id, "🤖 سوالت رو بپرس زندگی! من آماده‌ام.", back_menu_keyboard(lang))
                 
                 elif action == "web":
                     update_user(chat_id, state="waiting_web_search")
-                    send_message(chat_id, safe_text(lang, "web_search_prompt"), back_menu_keyboard(lang))
+                    send_message(chat_id, "🌐 عبارت موردنظرت رو برای جستجوی وب بفرست.", back_menu_keyboard(lang))
                 
                 elif action == "articles":
                     update_user(chat_id, state="waiting_article")
-                    send_message(chat_id, safe_text(lang, "article_prompt"), back_menu_keyboard(lang))
+                    send_message(chat_id, "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.", back_menu_keyboard(lang))
                 
                 elif action == "hadith":
-                    item = random.choice(HADITHS)
-                    send_message(chat_id, f"🕊️ {item}", main_menu(chat_id, lang))
+                    item = random.choice(HADITHS_WITH_DHIKR)
+                    msg = f"""🕊️ <b>حدیث روز</b>
+
+{item['hadith']}
+
+🔹 <b>ذکر روزانه:</b>
+{item['dhikr']}
+
+💚 با یاد خدا دل‌ها آرام می‌گیرد."""
+                    send_message(chat_id, msg, main_menu(chat_id, lang))
                     update_user(chat_id, score_add=1)
                 
                 elif action == "instant_quran":
                     item = random.choice(INSTANT_QURAN)
-                    send_message(chat_id, f"✨ {item}", main_menu(chat_id, lang))
+                    send_message(chat_id, f"📖 <b>قرآن در لحظه</b>\n\n{item}", main_menu(chat_id, lang))
                     update_user(chat_id, score_add=1)
                 
                 elif action == "events":
                     send_message(chat_id, safe_text(lang, "events_text"), main_menu(chat_id, lang))
                 
+                elif action == "feedback":
+                    update_user(chat_id, state="waiting_feedback")
+                    send_message(chat_id, "📝 لطفاً پیشنهاد یا انتقاد خود را بنویسید.\n💡 برای دریافت امتیاز، پیشنهادتان دقیق و تأثیرگذار باشد.", back_menu_keyboard(lang))
+                
                 elif action == "admin_msg":
                     update_user(chat_id, state="waiting_admin_msg")
-                    send_message(chat_id, safe_text(lang, "admin_msg_prompt"), back_menu_keyboard(lang))
+                    send_message(chat_id, "📩 پیامت رو بنویس تا مستقیم برای ادمین ارسال کنم.", back_menu_keyboard(lang))
                 
                 elif action == "stats":
                     latest_user = get_user(chat_id)
@@ -1162,6 +1379,7 @@ def webhook_token():
                             score=latest_user["score"],
                             search_count=latest_user["search_count"],
                             streak=latest_user["streak"],
+                            feedback_score=latest_user["feedback_score"],
                             join_date=latest_user["join_date"]
                         ),
                         main_menu(chat_id, lang)
@@ -1172,11 +1390,11 @@ def webhook_token():
                     if top_users:
                         leaderboard = ""
                         medals = ["🥇", "🥈", "🥉"]
-                        for idx, (name, score) in enumerate(top_users, 1):
-                            if idx <= 3:
-                                leaderboard += f"{medals[idx-1]} {name} — {score} امتیاز\n"
+                        for i, (name, score) in enumerate(top_users, 1):
+                            if i <= 3:
+                                leaderboard += f"{medals[i-1]} {name} — {score} امتیاز\n"
                             else:
-                                leaderboard += f"{idx}. {name} — {score} امتیاز\n"
+                                leaderboard += f"{i}. {name} — {score} امتیاز\n"
                     else:
                         leaderboard = "هیچ کاربری در لیگ قرآنی ثبت نشده است."
                     
@@ -1196,22 +1414,23 @@ def webhook_token():
                             score=latest_user["score"],
                             rank=rank,
                             search_count=latest_user["search_count"],
-                            streak=latest_user["streak"]
+                            streak=latest_user["streak"],
+                            feedback_score=latest_user["feedback_score"]
                         ),
                         main_menu(chat_id, lang)
                     )
                 
                 elif action == "change_lang":
-                    send_message(chat_id, safe_text(lang, "select_lang"), lang_keyboard())
+                    send_message(chat_id, "🌍 زبان خود را انتخاب کنید:", lang_keyboard())
                 
                 elif action == "daily_toggle":
                     current = user.get("receive_daily", 0)
                     new_value = 0 if current == 1 else 1
                     update_user(chat_id, receive_daily=new_value)
                     if new_value == 1:
-                        send_message(chat_id, safe_text(lang, "daily_enable"), main_menu(chat_id, lang))
+                        send_message(chat_id, "✅ دریافت روزانه فعال شد. هر روز محتوای جدید دریافت خواهید کرد.", main_menu(chat_id, lang))
                     else:
-                        send_message(chat_id, safe_text(lang, "daily_disable"), main_menu(chat_id, lang))
+                        send_message(chat_id, "❌ دریافت روزانه غیرفعال شد.", main_menu(chat_id, lang))
                 
                 elif action == "about":
                     send_message(chat_id, safe_text(lang, "about"), main_menu(chat_id, lang))
