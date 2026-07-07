@@ -21,9 +21,9 @@ except ImportError:
 app = Flask(__name__)
 
 # =========================================================
-# ۱. تنظیمات و متغیرهای محیطی اصلی
+# ۱. تنظیمات و متغیرهای محیطی اصلی (اصلاح شده)
 # =========================================================
-TOKEN = os.getenv("1649912283:atESusXoVB3YgzqKiQ7sJg9Jn9oqLLl5TxY", "")
+TOKEN = os.getenv("BOT_TOKEN", "")
 if not TOKEN:
     print("⚠️ BOT_TOKEN تنظیم نشده است! ربات کار نخواهد کرد.")
 
@@ -314,7 +314,7 @@ def update_pending_status(content_id, status):
     conn.close()
 
 # =========================================================
-# ۶. ابزارهای ارسال پیام به بله
+# ۶. ابزارهای ارسال پیام به بله (اصلاح شده)
 # =========================================================
 def send_bale(method, data):
     if not TOKEN:
@@ -348,12 +348,12 @@ def send_message(chat_id, text, reply_markup=None):
     if len(text) > 4000:
         parts = [text[i:i+4000] for i in range(0, len(text), 4000)]
         for part in parts:
-            send_message(chat_id, part, reply_markup)
+            send_message(chat_id, part, reply_markup if part == parts[0] else None)
         return {"ok": True}
     
     payload = {"chat_id": chat_id, "text": text}
     if reply_markup:
-        payload["reply_markup"] = reply_markup
+        payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)  # اصلاح: تبدیل به JSON
     return send_bale("sendMessage", payload)
 
 def send_message_with_retry(chat_id, text, reply_markup=None, max_retries=3):
@@ -602,7 +602,7 @@ def main_menu(chat_id, lang):
     ]
     
     if chat_id == ADMIN_ID:
-        buttons.insert(13, [{"text": "🛠️ پنل ادمین", "callback_data": "admin_panel"}])
+        buttons.append([{"text": "🛠️ پنل ادمین", "callback_data": "admin_panel"}])
     
     return {"inline_keyboard": buttons}
 
@@ -697,12 +697,10 @@ def smart_search(data_list, query, key="text"):
         if query in search_text:
             results.append(item)
         elif FUZZ_AVAILABLE:
-            # جستجوی فازی
             score = fuzz.partial_ratio(query, search_text)
             if score > 60:
                 results.append(item)
     
-    # حذف تکراری‌ها و محدود کردن
     seen = set()
     unique_results = []
     for item in results:
@@ -720,15 +718,12 @@ def search_library(q, user_id):
 
     results = []
     
-    # جستجو در قرآن
     for item in smart_search(QURAN_DATA, q):
         results.append(f"📘 قرآن ({item['surah']} - آیه {item['verse']}):\n{item['text']}\n🔹 ترجمه:\n{item['trans']}")
 
-    # جستجو در نهج‌البلاغه
     for item in smart_search(NAHJ_DATA, q):
         results.append(f"📙 نهج‌البلاغه ({item['type']} {item['number']}):\n{item['text']}\n🔹 ترجمه:\n{item['trans']}")
 
-    # جستجو در صحیفه سجادیه
     for item in smart_search(SAHIFEH_DATA, q):
         results.append(f"📗 صحیفه سجادیه ({item['title']}):\n{item['text']}\n🔹 ترجمه:\n{item['trans']}")
 
@@ -781,7 +776,7 @@ def search_articles(query):
         return f"خطا در جستجوی مقالات: {e}"
 
 # =========================================================
-# ۱۴. سیستم توزیع روزانه پست‌ها
+# ۱۴. سیستم توزیع روزانه پست‌ها (اصلاح شده)
 # =========================================================
 def next_item(book_name, data_list):
     if not data_list:
@@ -789,8 +784,9 @@ def next_item(book_name, data_list):
     
     current_idx, last_date = get_publish_index(book_name)
     
-    # اگر امروز قبلاً ارسال شده، برگردان
-    if last_date and datetime.now().date().isoformat() in last_date:
+    # بررسی اینکه آیا امروز قبلاً ارسال شده
+    today = datetime.now().date().isoformat()
+    if last_date and today in last_date:
         return None, current_idx
     
     idx = current_idx
@@ -819,7 +815,6 @@ def format_daily_message(book_name, item):
 
 def send_daily_posts():
     try:
-        # قرآن
         q_item, q_idx = next_item("quran", QURAN_DATA)
         if q_item:
             q_msg = format_daily_message("quran", q_item)
@@ -829,7 +824,6 @@ def send_daily_posts():
                 print("✅ قرآن روزانه ارسال شد.")
                 time.sleep(3)
         
-        # نهج‌البلاغه
         n_item, n_idx = next_item("nahj", NAHJ_DATA)
         if n_item:
             n_msg = format_daily_message("nahj", n_item)
@@ -839,7 +833,6 @@ def send_daily_posts():
                 print("✅ نهج‌البلاغه روزانه ارسال شد.")
                 time.sleep(3)
         
-        # صحیفه سجادیه
         s_item, s_idx = next_item("sahifeh", SAHIFEH_DATA)
         if s_item:
             s_msg = format_daily_message("sahifeh", s_item)
@@ -849,7 +842,6 @@ def send_daily_posts():
                 print("✅ صحیفه سجادیه روزانه ارسال شد.")
                 time.sleep(3)
         
-        # ارسال به کاربرانی که دریافت روزانه فعال دارند
         conn = db_conn()
         cur = conn.cursor()
         cur.execute("SELECT chat_id, name, lang FROM users WHERE receive_daily = 1")
@@ -948,7 +940,7 @@ def get_highest_score():
     return score or 0
 
 # =========================================================
-# ۱۷. مسیرهای تست و سلامت
+# ۱۷. مسیرهای تست و سلامت (اصلاح شده)
 # =========================================================
 @app.route("/", methods=["GET", "HEAD"])
 def health():
@@ -967,14 +959,13 @@ def webhook_check():
     return jsonify({"status": "ok", "message": "Webhook is alive"}), 200
 
 # =========================================================
-# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها
+# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها (اصلاح شده)
 # =========================================================
 @app.route("/", methods=["POST"])
 def webhook():
     try:
         data = request.get_json(force=True, silent=True) or {}
         
-        # پردازش پیام‌های عادی متنی
         if "message" in data:
             msg = data["message"]
             chat = msg.get("chat", {})
@@ -994,7 +985,6 @@ def webhook():
             user = get_user(chat_id)
             lang = user["lang"]
 
-            # استارت ربات
             if text == "/start" or text == "شروع":
                 update_user(chat_id, state="none")
                 send_message(
@@ -1004,7 +994,6 @@ def webhook():
                 )
                 return "OK", 200
 
-            # بررسی عضویت اجباری (جز برای ادمین)
             if chat_id != ADMIN_ID:
                 if not check_membership(chat_id):
                     send_message(
@@ -1014,12 +1003,10 @@ def webhook():
                     )
                     return "OK", 200
 
-            # اگر کاربر در وضعیت انتظار ورودی خاص باشد
             handled = handle_state_message(chat_id, text, user)
             if handled:
                 return "OK", 200
 
-            # ارسال منوی اصلی همراه خوش‌آمدگویی
             send_message(
                 chat_id,
                 safe_text(lang, "welcome").format(name=first_name),
@@ -1027,7 +1014,6 @@ def webhook():
             )
             return "OK", 200
 
-        # کلیک بر دکمه‌های شیشه‌ای (Callback Query)
         elif "callback_query" in data:
             cb = data["callback_query"]
             cb_id = cb.get("id")
@@ -1052,7 +1038,6 @@ def webhook():
             if cb_id:
                 answer_callback(cb_id)
 
-            # تغییر زبان کاربری
             if cb_data.startswith("setlang_"):
                 new_lang = cb_data.replace("setlang_", "").strip()
                 if new_lang not in LANGS:
@@ -1076,7 +1061,6 @@ def webhook():
                     )
                 return "OK", 200
 
-            # تایید عضویت در کانال
             if cb_data == "check_join":
                 if check_membership(chat_id):
                     send_message(
@@ -1092,7 +1076,6 @@ def webhook():
                     )
                 return "OK", 200
 
-            # بازگشت به منوی اصلی
             if cb_data == "back_main":
                 update_user(chat_id, state="none")
                 send_message(
@@ -1102,7 +1085,6 @@ def webhook():
                 )
                 return "OK", 200
 
-            # جلوگیری از اجرای عملیات زیر در صورت عدم جوین کاربر
             if chat_id != ADMIN_ID and not check_membership(chat_id):
                 send_message(
                     chat_id,
@@ -1111,7 +1093,6 @@ def webhook():
                 )
                 return "OK", 200
 
-            # پنل ادمین
             if cb_data == "admin_panel":
                 if chat_id != ADMIN_ID:
                     send_message(chat_id, "⛔ دسترسی غیرمجاز.")
@@ -1131,52 +1112,42 @@ def webhook():
                 send_message(chat_id, admin_text, main_menu(chat_id, lang))
                 return "OK", 200
 
-            # پردازش دکمه‌های منوی اصلی
             if cb_data.startswith("menu_"):
                 action = cb_data.replace("menu_", "")
                 
-                # دکمه جستجوی قرآن
                 if action == "search_quran":
                     update_user(chat_id, state="waiting_quran_search")
                     send_message(chat_id, safe_text(lang, "search_quran_prompt"), back_menu_keyboard(lang))
                 
-                # دکمه هوش مصنوعی
                 elif action == "ai":
                     update_user(chat_id, state="waiting_ai")
                     send_message(chat_id, safe_text(lang, "ai_prompt"), back_menu_keyboard(lang))
                 
-                # دکمه جستجوی وب
                 elif action == "web":
                     update_user(chat_id, state="waiting_web_search")
                     send_message(chat_id, safe_text(lang, "web_search_prompt"), back_menu_keyboard(lang))
                 
-                # دکمه مقالات علمی
                 elif action == "articles":
                     update_user(chat_id, state="waiting_article")
                     send_message(chat_id, safe_text(lang, "article_prompt"), back_menu_keyboard(lang))
                 
-                # دکمه حدیث و ذکر روز
                 elif action == "hadith":
                     item = random.choice(HADITHS)
                     send_message(chat_id, f"🕊️ {item}", main_menu(chat_id, lang))
                     update_user(chat_id, score_add=1)
                 
-                # دکمه قرآن در لحظه
                 elif action == "instant_quran":
                     item = random.choice(INSTANT_QURAN)
                     send_message(chat_id, f"✨ {item}", main_menu(chat_id, lang))
                     update_user(chat_id, score_add=1)
                 
-                # دکمه رویدادها
                 elif action == "events":
                     send_message(chat_id, safe_text(lang, "events_text"), main_menu(chat_id, lang))
                 
-                # دکمه ارسال پیام به ادمین
                 elif action == "admin_msg":
                     update_user(chat_id, state="waiting_admin_msg")
                     send_message(chat_id, safe_text(lang, "admin_msg_prompt"), back_menu_keyboard(lang))
                 
-                # دکمه آمار من
                 elif action == "stats":
                     latest_user = get_user(chat_id)
                     send_message(
@@ -1191,7 +1162,6 @@ def webhook():
                         main_menu(chat_id, lang)
                     )
                 
-                # دکمه لیگ قرآنی
                 elif action == "league":
                     top_users = get_leaderboard(10)
                     if top_users:
@@ -1211,7 +1181,6 @@ def webhook():
                         main_menu(chat_id, lang)
                     )
                 
-                # دکمه کارنامه و رتبه
                 elif action == "scorecard":
                     rank = get_user_rank(chat_id)
                     latest_user = get_user(chat_id)
@@ -1227,11 +1196,9 @@ def webhook():
                         main_menu(chat_id, lang)
                     )
                 
-                # دکمه تغییر زبان
                 elif action == "change_lang":
                     send_message(chat_id, safe_text(lang, "select_lang"), lang_keyboard())
                 
-                # دکمه دریافت روزانه
                 elif action == "daily_toggle":
                     current = user.get("receive_daily", 0)
                     new_value = 0 if current == 1 else 1
@@ -1241,7 +1208,6 @@ def webhook():
                     else:
                         send_message(chat_id, safe_text(lang, "daily_disable"), main_menu(chat_id, lang))
                 
-                # دکمه درباره ربات
                 elif action == "about":
                     send_message(chat_id, safe_text(lang, "about"), main_menu(chat_id, lang))
                 
@@ -1263,7 +1229,6 @@ def startup():
     init_db()
     load_library()
     
-    # راه‌اندازی نخ پس‌زمینه اسکژولر (اگر فعال باشد)
     if os.getenv("ENABLE_SCHEDULER", "false").lower() == "true":
         sched_thread = threading.Thread(target=daily_scheduler, daemon=True)
         sched_thread.start()
@@ -1271,7 +1236,6 @@ def startup():
     else:
         print("🟡 اسکژولر غیرفعال است. (ENABLE_SCHEDULER=false)")
 
-# اجرای مقداردهی اولیه
 startup()
 
 if __name__ == "__main__":
