@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۵.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۶.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
-با تمام قابلیت‌های بهبودیافته و رفع باگ‌ها
+با سیستم کد دعوت و امتیازدهی ویژه
 """
 
 import os
@@ -15,6 +15,7 @@ import time
 import re
 import logging
 import hashlib
+import string
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from functools import wraps
@@ -48,6 +49,8 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
 DB_PATH = os.getenv("DATABASE_PATH", "bot_data.db")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "labbayk_quranbot")
+PORT = int(os.environ.get("PORT", 10000))
 
 # فایل‌های کتابخانه
 QURAN_FILE = "quran.json"
@@ -84,7 +87,8 @@ FEATURES = {
     "reminder_system": True,
     "statistics_advanced": True,
     "best_user_daily": True,
-    "best_user_weekly": True
+    "best_user_weekly": True,
+    "referral_system": True
 }
 
 # =========================================================
@@ -176,7 +180,10 @@ ACHIEVEMENTS = {
     "streak_7": {"name": "🔥 هفت روز پیاپی", "points": 25},
     "streak_30": {"name": "⭐ سی روز پیاپی", "points": 50},
     "score_100": {"name": "💎 صد امتیازی", "points": 30},
-    "score_500": {"name": "👑 پانصد امتیازی", "points": 60}
+    "score_500": {"name": "👑 پانصد امتیازی", "points": 60},
+    "referrer_bronze": {"name": "🥉 دعوت‌کننده برنزی", "points": 20},
+    "referrer_silver": {"name": "🥈 دعوت‌کننده نقره‌ای", "points": 50},
+    "referrer_gold": {"name": "🥇 دعوت‌کننده طلایی", "points": 100}
 }
 
 # =========================================================
@@ -185,11 +192,12 @@ ACHIEVEMENTS = {
 QUEST_ACTIONS = [
     {"id": "quran_search", "label": "📖 جستجوی قرآن", "points": 3, "desc": "هر بار جستجو در قرآن"},
     {"id": "daily_visit", "label": "🌅 بازدید روزانه", "points": 5, "desc": "هر روز از ربات بازدید کن"},
-    {"id": "feedback", "label": "📝 ارسال پیشنهاد", "points": 10, "desc": "پیشنهاد سازنده بده"},
+    {"id": "feedback", "label": "📝 ارسال پیشنهاد", "points": 5, "desc": "پیشنهاد سازنده بده (حداکثر ۵ امتیاز)"},
     {"id": "hadith_read", "label": "🕊️ مطالعه حدیث", "points": 2, "desc": "حدیث روزانه را بخوان"},
     {"id": "instant_quran", "label": "✨ قرآن در لحظه", "points": 2, "desc": "آیه لحظه را دریافت کن"},
     {"id": "streak_7", "label": "🔥 ۷ روز پیاپی", "points": 15, "desc": "هفت روز متوالی بازدید کن"},
     {"id": "streak_30", "label": "⭐ ۳۰ روز پیاپی", "points": 30, "desc": "سی روز متوالی بازدید کن"},
+    {"id": "referral", "label": "🤝 دعوت از دوستان", "points": 10, "desc": "هر دعوت ۱۰ امتیاز برای شما و دوستتان"},
 ]
 
 # =========================================================
@@ -265,7 +273,7 @@ def save_library_file(file_path, data):
         return False
 
 # =========================================================
-# ۹. مدیریت دیتابیس (توسعه‌یافته)
+# ۹. مدیریت دیتابیس (توسعه‌یافته با سیستم دعوت)
 # =========================================================
 def db_conn():
     """اتصال به دیتابیس با مدیریت خطا"""
@@ -280,7 +288,7 @@ def init_db():
     conn = db_conn()
     cur = conn.cursor()
     
-    # جدول کاربران (توسعه‌یافته)
+    # جدول کاربران (توسعه‌یافته با سیستم دعوت)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             chat_id INTEGER PRIMARY KEY,
@@ -299,7 +307,11 @@ def init_db():
             last_visit_date TEXT DEFAULT '',
             daily_visit_count INTEGER DEFAULT 0,
             total_quests_completed INTEGER DEFAULT 0,
-            last_quest_date TEXT DEFAULT ''
+            last_quest_date TEXT DEFAULT '',
+            referral_code TEXT UNIQUE,
+            referred_by INTEGER DEFAULT NULL,
+            referral_count INTEGER DEFAULT 0,
+            referral_earned INTEGER DEFAULT 0
         )
     """)
     
@@ -422,6 +434,19 @@ def init_db():
         )
     """)
     
+    # جدول دعوت‌ها
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS referrals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            referrer_id INTEGER,
+            referred_id INTEGER,
+            referral_code TEXT,
+            created_at TEXT,
+            status TEXT DEFAULT 'active',
+            bonus_given INTEGER DEFAULT 0
+        )
+    """)
+    
     # مقداردهی اولیه publish_state
     for book in ["quran", "nahj", "sahifeh"]:
         cur.execute("INSERT OR IGNORE INTO publish_state (book_name, last_index) VALUES (?, 0)", (book,))
@@ -429,6 +454,11 @@ def init_db():
     conn.commit()
     conn.close()
     logger.info("🗄️ دیتابیس با موفقیت راه‌اندازی شد.")
+
+def generate_referral_code():
+    """تولید کد دعوت تصادفی"""
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(chars, k=8))
 
 def get_user(chat_id):
     """دریافت اطلاعات کامل کاربر با مدیریت خطا"""
@@ -439,7 +469,8 @@ def get_user(chat_id):
             SELECT name, lang, score, search_count, streak, feedback_score, 
                    last_active, join_date, receive_daily, state, total_visits, 
                    achievements, last_visit_date, daily_visit_count,
-                   total_quests_completed, last_quest_date
+                   total_quests_completed, last_quest_date,
+                   referral_code, referred_by, referral_count, referral_earned
             FROM users WHERE chat_id = ?
         """, (chat_id,))
         row = cur.fetchone()
@@ -462,7 +493,11 @@ def get_user(chat_id):
                 "last_visit_date": row[12] or "",
                 "daily_visit_count": row[13] or 0,
                 "total_quests_completed": row[14] or 0,
-                "last_quest_date": row[15] or ""
+                "last_quest_date": row[15] or "",
+                "referral_code": row[16] or "",
+                "referred_by": row[17] or 0,
+                "referral_count": row[18] or 0,
+                "referral_earned": row[19] or 0
             }
     except Exception as e:
         logger.error(f"خطا در دریافت کاربر {chat_id}: {e}")
@@ -473,20 +508,76 @@ def get_user(chat_id):
         "join_date": "", "receive_daily": 0, "state": "none",
         "total_visits": 0, "achievements": "", "last_visit_date": "",
         "daily_visit_count": 0, "total_quests_completed": 0,
-        "last_quest_date": ""
+        "last_quest_date": "", "referral_code": "",
+        "referred_by": 0, "referral_count": 0, "referral_earned": 0
     }
 
-def ensure_user(chat_id, name=""):
-    """ثبت کاربر جدید در صورت عدم وجود"""
+def ensure_user(chat_id, name="", referred_by=None):
+    """ثبت کاربر جدید با سیستم دعوت"""
     try:
         conn = db_conn()
         cur = conn.cursor()
+        
+        # بررسی وجود کاربر
+        cur.execute("SELECT chat_id FROM users WHERE chat_id = ?", (chat_id,))
+        existing = cur.fetchone()
+        
+        if existing:
+            conn.close()
+            return
+        
+        # تولید کد دعوت
+        referral_code = generate_referral_code()
+        
+        # ثبت کاربر
         cur.execute("""
-            INSERT OR IGNORE INTO users (chat_id, name, lang, join_date, last_active, total_visits)
-            VALUES (?, ?, 'fa', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)
-        """, (chat_id, name))
+            INSERT INTO users (chat_id, name, lang, join_date, last_active, 
+                             total_visits, referral_code, referred_by)
+            VALUES (?, ?, 'fa', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?)
+        """, (chat_id, name, referral_code, referred_by or 0))
+        
+        # اگر کاربر با دعوت آمده، امتیاز دهی
+        if referred_by and FEATURES["referral_system"]:
+            # ۱۰ امتیاز به کاربر جدید
+            cur.execute("UPDATE users SET score = score + 10 WHERE chat_id = ?", (chat_id,))
+            
+            # ۱۰ امتیاز به کاربر دعوت‌کننده
+            cur.execute("""
+                UPDATE users 
+                SET score = score + 10, referral_count = referral_count + 1,
+                    referral_earned = referral_earned + 10
+                WHERE chat_id = ?
+            """, (referred_by,))
+            
+            # ثبت در جدول referrals
+            cur.execute("""
+                INSERT INTO referrals (referrer_id, referred_id, referral_code, created_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            """, (referred_by, chat_id, referral_code))
+            
+            # اطلاع به دعوت‌کننده
+            try:
+                referrer = get_user(referred_by)
+                if referrer:
+                    send_message_with_retry(
+                        referred_by,
+                        f"""🎉 <b>تبریک! شما یک دعوت جدید دارید!</b>
+
+🌸 کاربر جدید با کد دعوت شما عضو شد:
+👤 {name}
+
+🌟 ۱۰ امتیاز به حساب شما اضافه شد!
+🏆 مجموع دعوت‌های شما: {referrer.get('referral_count', 0) + 1}
+
+💚 به دعوت‌های خود ادامه دهید!"""
+                    )
+            except Exception as e:
+                logger.error(f"خطا در ارسال پیام به دعوت‌کننده: {e}")
+        
         conn.commit()
         conn.close()
+        logger.info(f"کاربر جدید ثبت شد: {chat_id} ({name}) - کد دعوت: {referral_code}")
+        
     except Exception as e:
         logger.error(f"خطا در ثبت کاربر {chat_id}: {e}")
 
@@ -504,15 +595,16 @@ def update_user(chat_id, **kwargs):
         fields = []
         values = []
         for key, value in kwargs.items():
-            if key in ["name", "lang", "state", "achievements", "last_quest_date"]:
+            if key in ["name", "lang", "state", "achievements", "last_quest_date", "referral_code"]:
                 fields.append(f"{key} = ?")
                 values.append(value)
             elif key in ["score", "search_count", "streak", "feedback_score", 
                         "receive_daily", "total_visits", "daily_visit_count",
-                        "total_quests_completed"]:
+                        "total_quests_completed", "referral_count", "referral_earned"]:
                 fields.append(f"{key} = {key} + ?")
                 values.append(value)
-            elif key in ["score_set", "search_count_set", "streak_set"]:
+            elif key in ["score_set", "search_count_set", "streak_set", 
+                        "referral_count_set", "referral_earned_set"]:
                 actual_key = key.replace("_set", "")
                 fields.append(f"{actual_key} = ?")
                 values.append(value)
@@ -564,7 +656,7 @@ def get_leaderboard(limit=10):
         conn = db_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT name, score, total_visits, streak 
+            SELECT name, score, total_visits, streak, referral_count 
             FROM users 
             WHERE score > 0 AND total_visits > 0
             ORDER BY score DESC, total_visits DESC 
@@ -577,11 +669,11 @@ def get_leaderboard(limit=10):
         if not users:
             logger.info("لیگ قرآنی خالی است، استفاده از داده‌های نمونه")
             return [
-                ("امیرحسین", 150, 25, 7),
-                ("زهرا", 120, 20, 5),
-                ("محمد", 100, 18, 4),
-                ("سارا", 80, 15, 3),
-                ("علی", 60, 12, 2)
+                ("امیرحسین", 150, 25, 7, 3),
+                ("زهرا", 120, 20, 5, 2),
+                ("محمد", 100, 18, 4, 1),
+                ("سارا", 80, 15, 3, 0),
+                ("علی", 60, 12, 2, 0)
             ]
         
         return users
@@ -803,16 +895,16 @@ LANGS = {
         "admin_msg_prompt": "📩 با خیال راحت پیامت رو بنویس. من می‌رسونم به ادمین.",
         "admin_msg_sent": "✅ پیامت با عشق برای ادمین ارسال شد. 🙏",
         "under_construction": "🚧 این بخش در حال زیباتر شدن است. به‌زودی می‌آید.",
-        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}",
-        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجو در قرآن با ترجمه 📖\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n\n💚 همراه همیشگی تو در مسیر نور",
+        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
+        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجو در قرآن با ترجمه 📖\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n\n💚 همراه همیشگی تو در مسیر نور",
         "daily_enable": "✅ دریافت روزانه فعال شد. هر روز با عشق محتوای جدید می‌فرستم.",
         "daily_disable": "❌ دریافت روزانه غیرفعال شد. هر وقت خواستی فعالش کن.",
         "daily_toggle": "🔔 دریافت روزانه",
         "back_to_menu": "🏠 برگشت به منوی اصلی",
         "search_quran_prompt": "📖 کلمه یا عبارت قرآنی موردنظرت رو بفرست تا با عشق جستجو کنیم.",
         "article_prompt": "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.",
-        "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}\n\n💡 برای کسب امتیاز:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️",
-        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n👑 عنوان: {title}\n✅ کوئست‌ها: {quests}",
+        "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}\n\n💡 برای کسب امتیاز:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝",
+        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n👑 عنوان: {title}\n✅ کوئست‌ها: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
         "events_text": "📢 رویدادها و مسابقات کانون:\n\n🔹 جشنواره قرآن و عترت\n🔹 مسابقات حفظ و مفاهیم قرآن\n🔹 کارگاه‌های تفسیر و تدبر\n🔹 برنامه‌های ماه رمضان\n🔹 جلسات هفتگی قرآن\n🔹 مسابقات مقاله‌نویسی قرآنی\n\n📌 برای اطلاعات بیشتر به کانال مراجعه کن.",
         "unknown_error": "⚠️ یه خطای کوچک رخ داد. دوباره امتحان کن، مطمئنم موفق می‌شی.",
         "article_result": "📚 نتایج جستجوی مقالات علمی برای «{query}»:\n\n{results}\n\n💡 اگر نتیجه‌ای نیافتی، می‌تونی از مقالات پیشنهادی ما استفاده کنی.",
@@ -833,6 +925,7 @@ LANGS = {
         "admin_system": "💻 وضعیت سیستم",
         "admin_achievements": "🏅 مدیریت دستاوردها",
         "admin_best_users": "🏆 بهترین کاربران",
+        "admin_referrals": "🤝 آمار دعوت‌ها",
         "menu_labels": {
             "search_quran": "📖 جستجوی قرآن",
             "ai": "🤖 هوش مصنوعی",
@@ -852,7 +945,8 @@ LANGS = {
             "share": "📤 اشتراک‌گذاری",
             "reminder": "⏰ یادآوری",
             "quests": "🎯 کوئست‌های روزانه",
-            "best_users": "🏅 بهترین کاربران"
+            "best_users": "🏅 بهترین کاربران",
+            "referral": "🤝 دعوت از دوستان"
         }
     },
     "en": {
@@ -866,16 +960,16 @@ LANGS = {
         "admin_msg_prompt": "📩 Send your message and I'll forward it to admin:",
         "admin_msg_sent": "✅ Your message was sent to admin.",
         "under_construction": "🚧 This section is under construction.",
-        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}",
-        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Quran Search with translation 📖\n• AI Assistant 🤖\n• Scientific Articles 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅",
+        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
+        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Quran Search with translation 📖\n• AI Assistant 🤖\n• Scientific Articles 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝",
         "daily_enable": "✅ Daily receive enabled.",
         "daily_disable": "❌ Daily receive disabled.",
         "daily_toggle": "🔔 Daily Receive",
         "back_to_menu": "🏠 Back to main menu",
         "search_quran_prompt": "📖 Send a Quranic word or phrase to search.",
         "article_prompt": "📚 Send your article topic or keyword.",
-        "league_text": "🏆 Quran League:\n\n{leaderboard}\n\n💡 To earn points:\n• Quran Search 📖\n• Send feedback 📝\n• Daily visit 🌅\n• Read Hadith 🕊️",
-        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n👑 Title: {title}\n✅ Quests: {quests}",
+        "league_text": "🏆 Quran League:\n\n{leaderboard}\n\n💡 To earn points:\n• Quran Search 📖\n• Send feedback 📝\n• Daily visit 🌅\n• Read Hadith 🕊️\n• Invite friends 🤝",
+        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n👑 Title: {title}\n✅ Quests: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
         "events_text": "📢 Events and contests:\n\n🔹 Quran and Etrat Festival\n🔹 Memorization contests\n🔹 Interpretation workshops\n🔹 Ramadan programs\n🔹 Weekly Quran sessions\n🔹 Quranic writing contests",
         "unknown_error": "⚠️ A small error occurred. Please try again.",
         "article_result": "📚 Scientific article results for «{query}»:\n\n{results}\n\n💡 If no results found, try our suggested articles.",
@@ -896,6 +990,7 @@ LANGS = {
         "admin_system": "💻 System Status",
         "admin_achievements": "🏅 Manage Achievements",
         "admin_best_users": "🏆 Best Users",
+        "admin_referrals": "🤝 Referral Stats",
         "menu_labels": {
             "search_quran": "📖 Quran Search",
             "ai": "🤖 AI Assistant",
@@ -915,7 +1010,8 @@ LANGS = {
             "share": "📤 Share",
             "reminder": "⏰ Reminder",
             "quests": "🎯 Daily Quests",
-            "best_users": "🏅 Best Users"
+            "best_users": "🏅 Best Users",
+            "referral": "🤝 Invite Friends"
         }
     }
 }
@@ -968,9 +1064,10 @@ def quest_keyboard(lang):
         "inline_keyboard": [
             [{"text": "🎯 جستجوی قرآن (۳ امتیاز)", "callback_data": "quest_quran_search"}],
             [{"text": "🌅 بازدید روزانه (۵ امتیاز)", "callback_data": "quest_daily_visit"}],
-            [{"text": "📝 ارسال پیشنهاد (۱۰ امتیاز)", "callback_data": "quest_feedback"}],
+            [{"text": "📝 ارسال پیشنهاد (۵ امتیاز)", "callback_data": "quest_feedback"}],
             [{"text": "🕊️ مطالعه حدیث (۲ امتیاز)", "callback_data": "quest_hadith"}],
             [{"text": "✨ قرآن در لحظه (۲ امتیاز)", "callback_data": "quest_instant_quran"}],
+            [{"text": "🤝 دعوت از دوستان (۱۰ امتیاز)", "callback_data": "quest_referral"}],
             [{"text": "📊 مشاهده امتیازات", "callback_data": "show_quest_points"}],
             [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
         ]
@@ -986,8 +1083,22 @@ def best_users_keyboard(lang):
         ]
     }
 
+def referral_keyboard(lang, referral_code):
+    """کیبورد دعوت از دوستان"""
+    bot_username = BOT_USERNAME
+    referral_link = f"https://t.me/{bot_username}?start=ref_{referral_code}"
+    
+    return {
+        "inline_keyboard": [
+            [{"text": "📤 اشتراک‌گذاری لینک دعوت", "url": f"https://t.me/share/url?url={referral_link}&text=🌸 به ربات کانون قرآن و عترت بپیوند! \nبا این لینک عضو شو و ۱۰ امتیاز هدیه بگیر! 🎁"}],
+            [{"text": "📋 کپی لینک", "callback_data": "copy_referral"}],
+            [{"text": "📊 آمار دعوت‌ها", "callback_data": "referral_stats"}],
+            [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
+        ]
+    }
+
 def main_menu(chat_id, lang):
-    """منوی اصلی با ۱۶ دکمه"""
+    """منوی اصلی با ۱۷ دکمه"""
     labels = safe_lang_dict(lang)["menu_labels"]
     buttons = [
         [{"text": labels["search_quran"], "callback_data": "menu_search_quran"},
@@ -1008,7 +1119,8 @@ def main_menu(chat_id, lang):
          {"text": labels["reminder"], "callback_data": "menu_reminder"}],
         [{"text": labels["share"], "callback_data": "menu_share"},
          {"text": labels["quests"], "callback_data": "menu_quests"}],
-        [{"text": labels["best_users"], "callback_data": "menu_best_users"}]
+        [{"text": labels["best_users"], "callback_data": "menu_best_users"},
+         {"text": labels["referral"], "callback_data": "menu_referral"}]
     ]
     
     # اضافه کردن پنل ادمین برای ادمین
@@ -1018,7 +1130,7 @@ def main_menu(chat_id, lang):
     return {"inline_keyboard": buttons}
 
 def admin_menu(chat_id, lang="fa"):
-    """پنل ادمین با ۱۰ گزینه"""
+    """پنل ادمین با ۱۱ گزینه"""
     return {
         "inline_keyboard": [
             [{"text": safe_text(lang, "admin_stats"), "callback_data": "admin_stats"}],
@@ -1031,6 +1143,7 @@ def admin_menu(chat_id, lang="fa"):
             [{"text": safe_text(lang, "admin_system"), "callback_data": "admin_system"}],
             [{"text": safe_text(lang, "admin_achievements"), "callback_data": "admin_achievements"}],
             [{"text": safe_text(lang, "admin_best_users"), "callback_data": "admin_best_users"}],
+            [{"text": safe_text(lang, "admin_referrals"), "callback_data": "admin_referrals"}],
             [{"text": safe_text(lang, "admin_back"), "callback_data": "back_main"}]
         ]
     }
@@ -1125,8 +1238,11 @@ def ask_deepseek(question, lang):
     }
     
     try:
-        # ارسال وضعیت تایپ
-        send_chat_action(chat_id, "typing")
+        # ارسال وضعیت تایپ (با چک کردن chat_id معتبر)
+        try:
+            send_chat_action(chat_id, "typing")
+        except:
+            pass
         
         res = requests.post(
             "https://api.deepseek.com/chat/completions",
@@ -1340,12 +1456,13 @@ def calculate_reward(action, user_data):
     rewards = {
         "quran_search": {"points": 3, "emoji": "📖"},
         "daily_visit": {"points": 5, "emoji": "🌅"},
-        "feedback": {"points": 10, "emoji": "⭐"},
+        "feedback": {"points": 5, "emoji": "⭐"},  # کاهش یافته از ۱۰ به ۵
         "hadith_read": {"points": 2, "emoji": "🕊️"},
         "instant_quran": {"points": 2, "emoji": "✨"},
         "streak_bonus": {"points": 15, "emoji": "🔥"},
-        "feedback_high_score": {"points": 20, "emoji": "💎"},
-        "quest_complete": {"points": 5, "emoji": "🎯"}
+        "feedback_high_score": {"points": 10, "emoji": "💎"},  # کاهش یافته از ۲۰ به ۱۰
+        "quest_complete": {"points": 5, "emoji": "🎯"},
+        "referral_bonus": {"points": 10, "emoji": "🤝"}
     }
     
     reward = rewards.get(action, {"points": 1, "emoji": "🌸"})
@@ -1406,6 +1523,7 @@ def check_achievements(chat_id, action, user_data):
     streak = user_data.get("streak", 0)
     feedback_score = user_data.get("feedback_score", 0)
     search_count = user_data.get("search_count", 0)
+    referral_count = user_data.get("referral_count", 0)
     
     # دستاوردهای مختلف
     if action == "quran_search" and search_count >= 1:
@@ -1426,6 +1544,12 @@ def check_achievements(chat_id, action, user_data):
         achievements.append("score_100")
     if score >= 500:
         achievements.append("score_500")
+    if referral_count >= 5:
+        achievements.append("referrer_bronze")
+    if referral_count >= 10:
+        achievements.append("referrer_silver")
+    if referral_count >= 20:
+        achievements.append("referrer_gold")
     
     # ذخیره دستاوردها
     for achievement_key in achievements:
@@ -1559,7 +1683,6 @@ def get_best_user(period_type):
             """, (today,))
         else:
             # بهترین کاربر هفته (جمعه)
-            # پیدا کردن آخرین جمعه
             today = datetime.now().date()
             days_since_friday = (today.weekday() - 4) % 7
             last_friday = today - timedelta(days=days_since_friday)
@@ -1866,7 +1989,7 @@ def handle_state_message(chat_id, text, user):
         update_user_score(chat_id, "ai_question", user)
         return True
 
-    # وضعیت پیام به ادمین (رفع باگ)
+    # وضعیت پیام به ادمین
     if state == "waiting_admin_msg":
         try:
             # ارسال به ادمین با فرمت صحیح
@@ -1940,7 +2063,7 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
     
-    # وضعیت انتقاد و پیشنهاد (توسعه‌یافته)
+    # وضعیت انتقاد و پیشنهاد (امتیاز کمتر از قرآن)
     if state == "waiting_feedback":
         if not FEATURES["feedback_system"]:
             send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
@@ -1949,39 +2072,39 @@ def handle_state_message(chat_id, text, user):
         
         update_user(chat_id, state="none")
         
-        # امتیازدهی هوشمند
+        # امتیازدهی هوشمند (حداکثر ۵ امتیاز)
         score = 0
         category = "general"
         
         # تشخیص دسته‌بندی
         if "قرآن" in text or "ترجمه" in text:
             category = "quran"
-            score += 3
+            score += 1
         elif "حدیث" in text or "روایت" in text:
             category = "hadith"
-            score += 3
+            score += 1
         elif "ربات" in text or "بات" in text or "گزارش" in text:
             category = "bot"
-            score += 2
+            score += 1
         elif "پیشنهاد" in text:
             category = "suggestion"
-            score += 4
+            score += 2
         elif "انتقاد" in text or "مشکل" in text:
             category = "critique"
-            score += 3
+            score += 2
         
-        # امتیاز بر اساس طول متن و محتوا
+        # امتیاز بر اساس طول متن و محتوا (حداکثر ۵)
         if len(text) > 50:
-            score += 5
+            score += 2
         if len(text) > 100:
-            score += 3
+            score += 1
         if "لطفا" in text or "متشکرم" in text or "ممنون" in text:
-            score += 2
+            score += 1
         if "عالی" in text or "خوب" in text or "قشنگ" in text:
-            score += 2
+            score += 1
         
-        # حداکثر امتیاز ۲۰
-        score = min(score, 20)
+        # حداکثر امتیاز ۵ (کمتر از قرآن که ۳ امتیاز دارد)
+        score = min(score, 5)
         
         try:
             conn = db_conn()
@@ -1996,9 +2119,8 @@ def handle_state_message(chat_id, text, user):
             logger.error(f"خطا در ذخیره پیشنهاد: {e}")
         
         # اعمال امتیاز
-        if score >= 5:
+        if score >= 3:
             update_user(chat_id, score=score, feedback_score=score)
-            update_user_score(chat_id, "feedback_high_score", user) if score >= 10 else None
             send_message(chat_id, safe_text(lang, "feedback_score_msg", score=score), main_menu(chat_id, lang))
             
             # ارسال به ادمین
@@ -2110,6 +2232,7 @@ def get_system_stats():
         "quran_count": len(QURAN_DATA),
         "nahj_count": len(NAHJ_DATA),
         "sahifeh_count": len(SAHIFEH_DATA),
+        "total_referrals": 0,
         "features_status": FEATURES
     }
     
@@ -2122,6 +2245,8 @@ def get_system_stats():
         stats["pending_feedbacks"] = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM user_quests")
         stats["total_quests"] = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM referrals")
+        stats["total_referrals"] = cur.fetchone()[0]
         conn.close()
     except Exception as e:
         logger.error(f"خطا در دریافت آمار: {e}")
@@ -2151,6 +2276,9 @@ def format_system_stats():
 🎯 <b>کوئست‌ها:</b>
 ✅ کل کوئست‌های انجام شده: {stats.get('total_quests', 0)}
 
+🤝 <b>دعوت‌ها:</b>
+✅ کل دعوت‌ها: {stats.get('total_referrals', 0)}
+
 ⚙️ <b>ویژگی‌های فعال:</b>
 {', '.join([k for k, v in stats['features_status'].items() if v])}
 
@@ -2165,7 +2293,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "5.0",
+        "version": "6.0",
         "time": datetime.now().isoformat(),
         "quran_records": len(QURAN_DATA),
         "nahj_records": len(NAHJ_DATA),
@@ -2173,7 +2301,8 @@ def health():
         "total_users": get_user_count(),
         "active_users_7d": get_active_users(7),
         "features": FEATURES,
-        "deepseek_configured": bool(DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 10)
+        "deepseek_configured": bool(DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 10),
+        "port": PORT
     }), 200
 
 @app.route("/webhook", methods=["GET", "HEAD"])
@@ -2207,7 +2336,33 @@ def webhook_token():
                 return "OK", 200
 
             chat_id = int(chat_id)
-            ensure_user(chat_id, first_name)
+            
+            # پردازش کد دعوت در start
+            if text and text.startswith("/start"):
+                parts = text.split()
+                if len(parts) > 1 and parts[1].startswith("ref_"):
+                    referral_code = parts[1].replace("ref_", "")
+                    try:
+                        conn = db_conn()
+                        cur = conn.cursor()
+                        cur.execute("SELECT chat_id FROM users WHERE referral_code = ?", (referral_code,))
+                        referrer = cur.fetchone()
+                        conn.close()
+                        
+                        if referrer and referrer[0] != chat_id:
+                            # ثبت کاربر با دعوت
+                            ensure_user(chat_id, first_name, referrer[0])
+                            logger.info(f"کاربر {chat_id} با کد دعوت {referral_code} ثبت شد")
+                        else:
+                            ensure_user(chat_id, first_name)
+                    except Exception as e:
+                        logger.error(f"خطا در پردازش کد دعوت: {e}")
+                        ensure_user(chat_id, first_name)
+                else:
+                    ensure_user(chat_id, first_name)
+            else:
+                ensure_user(chat_id, first_name)
+            
             update_user(chat_id, name=first_name)
 
             user = get_user(chat_id)
@@ -2271,6 +2426,7 @@ def webhook_token():
 • قرآن در لحظه با ترجمه ✨
 • پیشنهاد و انتقاد با امتیاز ⭐
 • کوئست‌های روزانه 🎯
+• سیستم دعوت و پاداش 🤝
 
 👇 از منوی زیبای زیر استفاده کن:"""
             
@@ -2392,18 +2548,109 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
+            # سیستم دعوت
+            # ===========================
+            if cb_data == "menu_referral":
+                referral_code = user.get("referral_code", "")
+                if not referral_code:
+                    # تولید کد دعوت جدید
+                    referral_code = generate_referral_code()
+                    update_user(chat_id, referral_code=referral_code)
+                
+                msg = f"""🤝 <b>سیستم دعوت از دوستان</b>
+
+🌟 کد دعوت شما: <code>{referral_code}</code>
+
+🎁 با دعوت از دوستان:
+• به شما و دوستتان ۱۰ امتیاز هدیه داده می‌شود
+• با هر دعوت، یک کوئست جدید فعال می‌شود
+• پس از ۵ دعوت، عنوان «🥉 دعوت‌کننده برنزی» دریافت می‌کنید
+
+📊 تعداد دعوت‌های شما: {user.get('referral_count', 0)}
+💰 امتیاز کسب شده از دعوت‌ها: {user.get('referral_earned', 0)}
+
+📤 لینک دعوت خود را با دوستان به اشتراک بگذارید:"""
+                
+                send_message(chat_id, msg, referral_keyboard(lang, referral_code))
+                return "OK", 200
+
+            if cb_data == "copy_referral":
+                referral_code = user.get("referral_code", "")
+                if not referral_code:
+                    referral_code = generate_referral_code()
+                    update_user(chat_id, referral_code=referral_code)
+                
+                referral_link = f"https://t.me/{BOT_USERNAME}?start=ref_{referral_code}"
+                send_message(
+                    chat_id,
+                    f"📋 <b>لینک دعوت شما:</b>\n\n{referral_link}\n\n🌸 این لینک رو با دوستانت به اشتراک بذار!",
+                    referral_keyboard(lang, referral_code)
+                )
+                return "OK", 200
+
+            if cb_data == "referral_stats":
+                referrals_count = user.get("referral_count", 0)
+                referrals_earned = user.get("referral_earned", 0)
+                
+                msg = f"""📊 <b>آمار دعوت‌های شما</b>
+
+🤝 تعداد دعوت‌ها: {referrals_count}
+💰 امتیاز کسب شده: {referrals_earned}
+
+🏅 <b>دستاوردهای دعوت:</b>
+• ۵ دعوت: 🥉 دعوت‌کننده برنزی
+• ۱۰ دعوت: 🥈 دعوت‌کننده نقره‌ای
+• ۲۰ دعوت: 🥇 دعوت‌کننده طلایی
+
+💪 به دعوت از دوستان ادامه بده!"""
+                
+                referral_code = user.get("referral_code", "")
+                if not referral_code:
+                    referral_code = generate_referral_code()
+                    update_user(chat_id, referral_code=referral_code)
+                
+                send_message(chat_id, msg, referral_keyboard(lang, referral_code))
+                return "OK", 200
+
+            # ===========================
             # کوئست‌های روزانه
             # ===========================
             if cb_data.startswith("quest_"):
                 quest_id = cb_data.replace("quest_", "")
                 
-                if quest_id in ["quran_search", "daily_visit", "feedback", "hadith", "instant_quran"]:
+                if quest_id == "referral":
+                    # کوئست دعوت: بررسی اینکه آیا کاربر امروز دعوت داشته
+                    try:
+                        conn = db_conn()
+                        cur = conn.cursor()
+                        cur.execute("""
+                            SELECT id FROM referrals 
+                            WHERE referrer_id = ? 
+                            AND created_at > datetime('now', '-1 day')
+                        """, (chat_id,))
+                        has_referral = cur.fetchone()
+                        conn.close()
+                        
+                        if has_referral:
+                            # انجام کوئست
+                            success, message = complete_quest(chat_id, quest_id, user)
+                            send_message(chat_id, message, quest_keyboard(lang) if success else main_menu(chat_id, lang))
+                            if success:
+                                update_user_score(chat_id, "quest_complete", user)
+                        else:
+                            send_message(
+                                chat_id,
+                                "🤝 امروز هیچ دعوتی نداشته‌اید!\n\nبرای انجام این کوئست، لطفاً از دکمه «دعوت از دوستان» استفاده کنید و لینک خود را به اشتراک بگذارید.",
+                                quest_keyboard(lang)
+                            )
+                    except Exception as e:
+                        logger.error(f"خطا در بررسی دعوت: {e}")
+                        send_message(chat_id, "⚠️ خطا در بررسی دعوت. لطفاً دوباره تلاش کنید.", quest_keyboard(lang))
+                elif quest_id in ["quran_search", "daily_visit", "feedback", "hadith", "instant_quran"]:
                     # انجام کوئست
                     success, message = complete_quest(chat_id, quest_id, user)
                     send_message(chat_id, message, quest_keyboard(lang) if success else main_menu(chat_id, lang))
-                    
                     if success:
-                        # به‌روزرسانی امتیاز
                         update_user_score(chat_id, "quest_complete", user)
                 elif quest_id == "show_quest_points":
                     # نمایش وضعیت کوئست‌ها
@@ -2480,6 +2727,7 @@ def webhook_token():
 🟢 فعال (۷ روز): {stats['active_users_7d']}
 📩 بازخوردهای در انتظار: {stats['pending_feedbacks']}
 🏆 برترین امتیاز: {stats['highest_score']}
+🤝 کل دعوت‌ها: {stats.get('total_referrals', 0)}
 
 📚 <b>محتوای کتابخانه:</b>
 📖 قرآن: {stats['quran_count']} آیه
@@ -2491,7 +2739,7 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
-            # آمار ادمین (توسعه‌یافته)
+            # آمار ادمین
             # ===========================
             if cb_data == "admin_stats":
                 if chat_id != ADMIN_ID:
@@ -2521,6 +2769,9 @@ def webhook_token():
 
 🎯 <b>کوئست‌ها:</b>
 • کل کوئست‌های انجام شده: {stats.get('total_quests', 0)}
+
+🤝 <b>دعوت‌ها:</b>
+• کل دعوت‌ها: {stats.get('total_referrals', 0)}
 
 📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
                 send_message(chat_id, stats_text, admin_menu(chat_id, lang))
@@ -2719,10 +2970,52 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
+            # آمار دعوت‌ها
+            # ===========================
+            if cb_data == "admin_referrals":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+                
+                try:
+                    conn = db_conn()
+                    cur = conn.cursor()
+                    cur.execute("""
+                        SELECT COUNT(*) FROM referrals
+                    """)
+                    total_ref = cur.fetchone()[0]
+                    
+                    cur.execute("""
+                        SELECT user_name, referral_count, referral_earned 
+                        FROM users 
+                        WHERE referral_count > 0 
+                        ORDER BY referral_count DESC 
+                        LIMIT 10
+                    """)
+                    top_referrers = cur.fetchall()
+                    conn.close()
+                    
+                    msg = "🤝 <b>آمار دعوت‌ها</b>\n\n"
+                    msg += f"📊 کل دعوت‌ها: {total_ref}\n\n"
+                    
+                    if top_referrers:
+                        msg += "🏆 <b>برترین دعوت‌کنندگان:</b>\n\n"
+                        for i, (name, count, earned) in enumerate(top_referrers, 1):
+                            msg += f"{i}. {name} — {count} دعوت (💰 {earned} امتیاز)\n"
+                    else:
+                        msg += "📌 هنوز دعوتی ثبت نشده است."
+                    
+                    send_message(chat_id, msg, admin_menu(chat_id, lang))
+                except Exception as e:
+                    logger.error(f"خطا در دریافت آمار دعوت‌ها: {e}")
+                    send_message(chat_id, "⚠️ خطا در دریافت آمار دعوت‌ها.", admin_menu(chat_id, lang))
+                return "OK", 200
+
+            # ===========================
             # اشتراک‌گذاری
             # ===========================
             if cb_data == "menu_share":
-                bot_username = os.getenv("BOT_USERNAME", "labbayk_quranbot")
+                bot_username = BOT_USERNAME
                 share_text = f"""🌟 <b>ربات کانون قرآن و عترت</b>
 
 ✨ همراه همیشگی تو در مسیر نور و معرفت
@@ -2732,6 +3025,7 @@ def webhook_token():
 🕊️ حدیث و ذکر روزانه
 🏆 لیگ قرآنی
 🎯 کوئست‌های روزانه
+🤝 سیستم دعوت و پاداش
 
 💚 با ما همراه شو:
 https://t.me/{bot_username}"""
@@ -2743,7 +3037,7 @@ https://t.me/{bot_username}"""
             # کپی لینک
             # ===========================
             if cb_data == "copy_link":
-                bot_username = os.getenv("BOT_USERNAME", "labbayk_quranbot")
+                bot_username = BOT_USERNAME
                 send_message(
                     chat_id,
                     f"📋 <b>لینک ربات:</b>\n\nhttps://t.me/{bot_username}\n\n💚 این لینک رو با دوستانت به اشتراک بذار!",
@@ -2841,6 +3135,10 @@ https://t.me/{bot_username}"""
 • انجام کوئست‌های مختلف
 • کسب امتیاز اضافی
 
+🤝 <b>سیستم دعوت:</b>
+• دعوت از دوستان با لینک اختصاصی
+• ۱۰ امتیاز هدیه برای شما و دوستتان
+
 🏅 <b>بهترین کاربران:</b>
 • بهترین کاربر روز (هر شب ساعت ۲۳:۵۹)
 • بهترین کاربر هفته (هر جمعه)
@@ -2930,7 +3228,7 @@ https://t.me/{bot_username}"""
                     update_user(chat_id, state="waiting_feedback")
                     send_message(
                         chat_id,
-                        "📝 <b>پیشنهاد یا انتقاد خود را بنویسید</b>\n\n💡 نکات برای دریافت امتیاز بیشتر:\n• پیشنهاد خود را دقیق و تأثیرگذار بنویسید\n• از کلمات کلیدی مناسب استفاده کنید\n• پیشنهاد سازنده و عملی ارائه دهید\n\n⭐ حداکثر امتیاز: ۲۰",
+                        "📝 <b>پیشنهاد یا انتقاد خود را بنویسید</b>\n\n💡 نکات برای دریافت امتیاز بیشتر:\n• پیشنهاد خود را دقیق و تأثیرگذار بنویسید\n• از کلمات کلیدی مناسب استفاده کنید\n• پیشنهاد سازنده و عملی ارائه دهید\n\n⭐ حداکثر امتیاز: ۵ (کمتر از جستجوی قرآن)",
                         back_menu_keyboard(lang)
                     )
                 
@@ -2952,7 +3250,9 @@ https://t.me/{bot_username}"""
                             join_date=latest_user["join_date"],
                             title=title,
                             visits=latest_user["total_visits"],
-                            quests=latest_user["total_quests_completed"]
+                            quests=latest_user["total_quests_completed"],
+                            referrals=latest_user["referral_count"],
+                            referral_earned=latest_user["referral_earned"]
                         ),
                         main_menu(chat_id, lang)
                     )
@@ -2967,21 +3267,24 @@ https://t.me/{bot_username}"""
                         leaderboard = ""
                         medals = ["🥇", "🥈", "🥉"]
                         for i, user_data in enumerate(top_users, 1):
-                            if len(user_data) >= 4:
+                            if len(user_data) >= 5:
+                                name, score, visits, streak, referrals = user_data[0], user_data[1], user_data[2], user_data[3], user_data[4]
+                            elif len(user_data) >= 4:
                                 name, score, visits, streak = user_data[0], user_data[1], user_data[2], user_data[3]
+                                referrals = 0
                             elif len(user_data) >= 3:
                                 name, score, visits = user_data[0], user_data[1], user_data[2]
-                                streak = 0
+                                streak, referrals = 0, 0
                             else:
                                 name, score = user_data[0], user_data[1]
-                                visits, streak = 0, 0
+                                visits, streak, referrals = 0, 0, 0
                             
                             if i <= 3:
-                                leaderboard += f"{medals[i-1]} {name} — {score} امتیاز (🔥 {streak} روز)\n"
+                                leaderboard += f"{medals[i-1]} {name} — {score} امتیاز (🔥 {streak} روز، 🤝 {referrals} دعوت)\n"
                             else:
-                                leaderboard += f"{i}. {name} — {score} امتیاز (🔥 {streak} روز)\n"
+                                leaderboard += f"{i}. {name} — {score} امتیاز (🔥 {streak} روز، 🤝 {referrals} دعوت)\n"
                     else:
-                        leaderboard = "🌟 <b>لیگ قرآنی هنوز شروع نشده!</b>\n\n💡 اولین نفر باش و با استفاده از ربات امتیاز جمع کن:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️"
+                        leaderboard = "🌟 <b>لیگ قرآنی هنوز شروع نشده!</b>\n\n💡 اولین نفر باش و با استفاده از ربات امتیاز جمع کن:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝"
                     
                     send_message(
                         chat_id,
@@ -3003,7 +3306,9 @@ https://t.me/{bot_username}"""
                             streak=latest_user["streak"],
                             feedback_score=latest_user["feedback_score"],
                             title=title,
-                            quests=latest_user["total_quests_completed"]
+                            quests=latest_user["total_quests_completed"],
+                            referrals=latest_user["referral_count"],
+                            referral_earned=latest_user["referral_earned"]
                         ),
                         main_menu(chat_id, lang)
                     )
@@ -3032,6 +3337,28 @@ https://t.me/{bot_username}"""
                 
                 elif action == "best_users":
                     send_message(chat_id, "🏅 <b>بهترین کاربران</b>\n\nهر شب ساعت ۲۳:۵۹ بهترین کاربر روز\nهر جمعه ساعت ۲۳:۵۹ بهترین کاربر هفته\n\nبرای مشاهده انتخاب کن:", best_users_keyboard(lang))
+                
+                elif action == "referral":
+                    referral_code = user.get("referral_code", "")
+                    if not referral_code:
+                        referral_code = generate_referral_code()
+                        update_user(chat_id, referral_code=referral_code)
+                    
+                    msg = f"""🤝 <b>سیستم دعوت از دوستان</b>
+
+🌟 کد دعوت شما: <code>{referral_code}</code>
+
+🎁 با دعوت از دوستان:
+• به شما و دوستتان ۱۰ امتیاز هدیه داده می‌شود
+• با هر دعوت، یک کوئست جدید فعال می‌شود
+• پس از ۵ دعوت، عنوان «🥉 دعوت‌کننده برنزی» دریافت می‌کنید
+
+📊 تعداد دعوت‌های شما: {user.get('referral_count', 0)}
+💰 امتیاز کسب شده از دعوت‌ها: {user.get('referral_earned', 0)}
+
+📤 لینک دعوت خود را با دوستان به اشتراک بگذارید:"""
+                    
+                    send_message(chat_id, msg, referral_keyboard(lang, referral_code))
                 
                 else:
                     send_message(chat_id, safe_text(lang, "under_construction"), main_menu(chat_id, lang))
@@ -3102,6 +3429,7 @@ def startup():
         
         logger.info("🎉 ربات با موفقیت راه‌اندازی شد!")
         logger.info(f"📊 آمار اولیه: {get_system_stats()}")
+        logger.info(f"🌐 سرور روی پورت {PORT} در حال اجراست...")
         
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
@@ -3113,4 +3441,4 @@ startup()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     logger.info(f"🚀 ربات روی پورت {port} در حال اجراست...")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
