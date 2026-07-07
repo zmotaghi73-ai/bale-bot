@@ -21,7 +21,7 @@ except ImportError:
 app = Flask(__name__)
 
 # =========================================================
-# ۱. تنظیمات و متغیرهای محیطی اصلی (اصلاح شده)
+# ۱. تنظیمات و متغیرهای محیطی اصلی
 # =========================================================
 TOKEN = os.getenv("BOT_TOKEN", "")
 if not TOKEN:
@@ -347,13 +347,13 @@ def send_message(chat_id, text, reply_markup=None):
         return None
     if len(text) > 4000:
         parts = [text[i:i+4000] for i in range(0, len(text), 4000)]
-        for part in parts:
-            send_message(chat_id, part, reply_markup if part == parts[0] else None)
+        for i, part in enumerate(parts):
+            send_message(chat_id, part, reply_markup if i == 0 else None)
         return {"ok": True}
     
     payload = {"chat_id": chat_id, "text": text}
     if reply_markup:
-        payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)  # اصلاح: تبدیل به JSON
+        payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
     return send_bale("sendMessage", payload)
 
 def send_message_with_retry(chat_id, text, reply_markup=None, max_retries=3):
@@ -776,7 +776,7 @@ def search_articles(query):
         return f"خطا در جستجوی مقالات: {e}"
 
 # =========================================================
-# ۱۴. سیستم توزیع روزانه پست‌ها (اصلاح شده)
+# ۱۴. سیستم توزیع روزانه پست‌ها
 # =========================================================
 def next_item(book_name, data_list):
     if not data_list:
@@ -784,7 +784,6 @@ def next_item(book_name, data_list):
     
     current_idx, last_date = get_publish_index(book_name)
     
-    # بررسی اینکه آیا امروز قبلاً ارسال شده
     today = datetime.now().date().isoformat()
     if last_date and today in last_date:
         return None, current_idx
@@ -940,7 +939,7 @@ def get_highest_score():
     return score or 0
 
 # =========================================================
-# ۱۷. مسیرهای تست و سلامت (اصلاح شده)
+# ۱۷. مسیرهای تست و سلامت
 # =========================================================
 @app.route("/", methods=["GET", "HEAD"])
 def health():
@@ -959,15 +958,11 @@ def webhook_check():
     return jsonify({"status": "ok", "message": "Webhook is alive"}), 200
 
 # =========================================================
-# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها (اصلاح شده)
+# ۱۸. وب هوک و مدیریت یکپارچه درخواست‌ها (اصلاح شده نهایی)
 # =========================================================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook_token():
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        # تمام منطق پردازش پیام را اینجا کپی کنید
-        # (همان منطقی که در مسیر / هست)
-        return "OK", 200
         data = request.get_json(force=True, silent=True) or {}
         
         if "message" in data:
@@ -989,7 +984,7 @@ def webhook_token():
             user = get_user(chat_id)
             lang = user["lang"]
 
-            if text == "/start" or text == "شروع":
+            if text == "/start" or text == "شروع" or text == "/start@labbayk_quranbot":
                 update_user(chat_id, state="none")
                 send_message(
                     chat_id,
@@ -1007,8 +1002,14 @@ def webhook_token():
                     )
                     return "OK", 200
 
-            handled = handle_state_message(chat_id, text, user)
-            if handled:
+            try:
+                handled = handle_state_message(chat_id, text, user)
+                if handled:
+                    return "OK", 200
+            except Exception as e:
+                print(f"State message error: {e}")
+                send_message(chat_id, "⚠️ خطایی در پردازش پیام رخ داد. لطفاً دوباره تلاش کنید.")
+                update_user(chat_id, state="none")
                 return "OK", 200
 
             send_message(
@@ -1039,8 +1040,8 @@ def webhook_token():
             user = get_user(chat_id)
             lang = user["lang"]
 
-            if cb_id:
-                answer_callback(cb_id)
+            # پاسخ به callback برای همه موارد
+            answer_callback(cb_id)
 
             if cb_data.startswith("setlang_"):
                 new_lang = cb_data.replace("setlang_", "").strip()
