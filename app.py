@@ -1,359 +1,200 @@
+# -*- coding: utf-8 -*-
 import os
-import json
-import time
 import sqlite3
-import threading
-from datetime import datetime
-from pathlib import Path
-
+import random
 import requests
+import json
+import threading
+import time
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# =========================
-# Config
-# =========================
-TOKEN = os.environ.get("BOT_TOKEN", "").strip()
-BALE_API_BASE = f"https://tapi.bale.ai/bot{TOKEN}" if TOKEN else ""
-PORT = int(os.environ.get("PORT", 10000))
+# =========================================================
+# ۱. تنظیمات و متغیرهای محیطی اصلی (Environment Variables)
+# =========================================================
+TOKEN = os.getenv("BOT_TOKEN", "YOUR_BALE_BOT_TOKEN")
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "YOUR_DEEPSEEK_API_KEY")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
+CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
+BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
+DB_PATH = "bot_data.db"
 
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "").strip()
-DEEPSEEK_API_URL = os.environ.get(
-    "DEEPSEEK_API_URL",
-    "https://api.deepseek.com/chat/completions"
-).strip()
+QURAN_FILE = "quran.json"
+NAHJ_FILE = "nahj.json"
+SAHIFEH_FILE = "sahifeh.json"
 
-ADMIN_IDS = set()
-for raw_id in os.environ.get("ADMIN_IDS", "").split(","):
-    raw_id = raw_id.strip()
-    if raw_id.isdigit():
-        ADMIN_IDS.add(int(raw_id))
+# متغیرهای سراسری برای نگه داشتن داده‌های بارگذاری شده در حافظه
+QURAN_DATA = []
+NAHJ_DATA = []
+SAHIFEH_DATA = []
 
-CHANNEL_ID = os.environ.get("CHANNEL_ID", "").strip()
-CHANNEL_USERNAME = os.environ.get("CHANNEL_USERNAME", "").strip()
-DATABASE_PATH = os.environ.get("DATABASE_PATH", "bot.db")
-LIBRARY_PATH = os.environ.get("LIBRARY_PATH", "library.json")
-SETTINGS_PATH = os.environ.get("SETTINGS_PATH", "settings.json")
+# =========================================================
+# ۲. داده‌های اولیه و نمونه (Seed Data) در صورت نبود فایل‌ها
+# =========================================================
+DEFAULT_QURAN_SEED = [
+    {"index": 1, "surah": "حمد", "verse": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "trans": "به نام خداوند بخشنده مهربان"},
+    {"index": 2, "surah": "حمد", "verse": 2, "text": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", "trans": "ستایش مخصوص خداوندی است که پروردگار جهانیان است"},
+    {"index": 3, "surah": "حمد", "verse": 5, "text": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", "trans": "تنها تو را می‌پرستیم و تنها از تو یاری می‌جوییم"},
+    {"index": 4, "surah": "بقره", "verse": 153, "text": "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ", "trans": "ای کسانی که ایمان آورده‌اید، از صبر و نماز یاری جویید"},
+    {"index": 5, "surah": "بقره", "verse": 255, "text": "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ", "trans": "خداوند است که هیچ معبودی جز او نیست؛ زنده و پایدار است"}
+]
 
-# مهم: پیش‌فرض خاموش است تا Gunicorn timeout ندهد
-ENABLE_SCHEDULER = os.environ.get("ENABLE_SCHEDULER", "false").lower() == "true"
+DEFAULT_NAHJ_SEED = [
+    {"index": 1, "type": "خطبه", "number": 1, "text": "الْحَمْدُ لِلَّهِ الَّذِی لَا یَبْلُغُ مِدْحَتَهُ الْقَائِلُونَ", "trans": "ستایش خدایی را که سخنوران در ستودن او فرومانند"},
+    {"index": 2, "type": "حکمت", "number": 1, "text": "كُنْ فِي الْفِتْنَةِ كَابْنِ اللَّبُونِ لاَ ظَهْرٌ فَيُرْكَبَ، وَلاَ ضَرْعٌ فَيُحْلَبَ", "trans": "در فتنه‌ها چونان شتر دو ساله باش، نه پشتی دارد که سوار شوند و نه پستانی که بدوشند"},
+    {"index": 3, "type": "نامه", "number": 31, "text": "يَا بُنَيَّ اجْعَلْ نَفْسَكَ مِيزَاناً فِيما بَيْنَكَ وَبَيْنَ غَيْرِكَ", "trans": "پسرم، خویشتن را میان خود و دیگران ترازویی قرار ده"}
+]
 
-# =========================
-# Globals
-# =========================
-library_data = []
-scheduler_started = False
-scheduler_lock = threading.Lock()
+DEFAULT_SAHIFEH_SEED = [
+    {"index": 1, "dua": 1, "title": "در ستایش پروردگار", "text": "الْحَمْدُ لِلَّهِ الْأَوَّلِ بلا أَوَّلٍ كَانَ قَبْلَهُ", "trans": "ستایش خدای را که نخستین است و پیش از او نخستینی نبوده"},
+    {"index": 2, "dua": 20, "title": "دعای مکارم الاخلاق", "text": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَ آلِهِ ، وَ بَلِّغْ بِإِیمَانِی أَکْمَلَ الْإِیمَانِ", "trans": "بار خدایا بر محمد و آلش درود فرست، و ایمان مرا به کامل‌ترین مرتبه ایمان برسان"}
+]
 
-# =========================
-# Database
-# =========================
-def get_db():
-    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+# =========================================================
+# ۳. توابع راه‌اندازی و مدیریت فایل‌های JSON کتابخانه
+# =========================================================
+def ensure_library_files():
+    """اگر فایل‌های دیتای متون وجود نداشتند، آن‌ها را با مقادیر اولیه می‌سازد."""
+    if not os.path.exists(QURAN_FILE):
+        with open(QURAN_FILE, "w", encoding="utf-8") as f:
+            json.dump(DEFAULT_QURAN_SEED, f, ensure_ascii=False, indent=4)
+    
+    if not os.path.exists(NAHJ_FILE):
+        with open(NAHJ_FILE, "w", encoding="utf-8") as f:
+            json.dump(DEFAULT_NAHJ_SEED, f, ensure_ascii=False, indent=4)
+            
+    if not os.path.exists(SAHIFEH_FILE):
+        with open(SAHIFEH_FILE, "w", encoding="utf-8") as f:
+            json.dump(DEFAULT_SAHIFEH_SEED, f, ensure_ascii=False, indent=4)
 
+def load_library():
+    """بارگذاری اطلاعات کتابخانه از فایل‌ها به حافظه موقت رم"""
+    global QURAN_DATA, NAHJ_DATA, SAHIFEH_DATA
+    try:
+        ensure_library_files()
+        with open(QURAN_FILE, "r", encoding="utf-8") as f:
+            QURAN_DATA = json.load(f)
+        with open(NAHJ_FILE, "r", encoding="utf-8") as f:
+            NAHJ_DATA = json.load(f)
+        with open(SAHIFEH_FILE, "r", encoding="utf-8") as f:
+            SAHIFEH_DATA = json.load(f)
+        print("🟢 کتابخانه با موفقیت بارگذاری شد.")
+    except Exception as e:
+        print(f"🔴 خطا در بارگذاری فایل‌های کتابخانه: {e}")
+
+# =========================================================
+# ۴. مدیریت دیتابیس محلی ربات (SQLite)
+# =========================================================
+def db_conn():
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def init_db():
-    conn = get_db()
+    """ایجاد جداول دیتابیس در صورت عدم وجود"""
+    conn = db_conn()
     cur = conn.cursor()
-
+    
+    # جدول کاربران
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            first_name TEXT,
-            last_name TEXT,
-            username TEXT,
-            language TEXT DEFAULT 'fa',
-            joined_at TEXT,
-            is_banned INTEGER DEFAULT 0
+            chat_id INTEGER PRIMARY KEY,
+            name TEXT DEFAULT '',
+            lang TEXT DEFAULT 'fa',
+            score INTEGER DEFAULT 0,
+            state TEXT DEFAULT 'none'
         )
     """)
-
+    
+    # جدول وضعیت ارسال‌های روزانه کتابخانه به کانال
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_states (
-            user_id INTEGER PRIMARY KEY,
-            state TEXT DEFAULT '',
-            state_data TEXT DEFAULT ''
+        CREATE TABLE IF NOT EXISTS publish_state (
+            book_name TEXT PRIMARY KEY,
+            last_index INTEGER DEFAULT 0
         )
     """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            action TEXT,
-            created_at TEXT
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS daily_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            content_type TEXT,
-            content_text TEXT,
-            created_at TEXT
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS bot_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    """)
-
+    
+    # ثبت رکوردهای پیش‌فرض وضعیت ارسال روزانه برای سه منبع
+    for book in ["quran", "nahj", "sahifeh"]:
+        cur.execute("INSERT OR IGNORE INTO publish_state (book_name, last_index) VALUES (?, 0)", (book,))
+        
     conn.commit()
     conn.close()
     print("🟢 دیتابیس با موفقیت راه‌اندازی شد.")
 
-
-# =========================
-# Default files
-# =========================
-def ensure_library_file():
-    path = Path(LIBRARY_PATH)
-    if path.exists():
-        return
-
-    seed_library = [
-        {
-            "title": "قرآن کریم",
-            "category": "quran",
-            "author": "وحی الهی",
-            "summary": "متن قرآن کریم برای جستجو و استفاده در ربات.",
-            "keywords": ["قرآن", "سوره", "آیه", "تفسیر"]
-        },
-        {
-            "title": "نهج البلاغه",
-            "category": "hadith",
-            "author": "امام علی علیه‌السلام",
-            "summary": "مجموعه خطبه‌ها، نامه‌ها و حکمت‌ها.",
-            "keywords": ["نهج البلاغه", "امام علی", "حکمت", "خطبه"]
-        },
-        {
-            "title": "صحیفه سجادیه",
-            "category": "dua",
-            "author": "امام سجاد علیه‌السلام",
-            "summary": "مجموعه دعاهای ارزشمند و تربیتی.",
-            "keywords": ["صحیفه", "دعا", "امام سجاد"]
-        },
-        {
-            "title": "چهل حدیث",
-            "category": "book",
-            "author": "امام خمینی",
-            "summary": "شرح اخلاقی و عرفانی چهل حدیث.",
-            "keywords": ["حدیث", "اخلاق", "عرفان"]
+def get_user(chat_id):
+    conn = db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT name, lang, score, state FROM users WHERE chat_id = ?", (chat_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return {
+            "name": row[0] or "",
+            "lang": row[1] if row[1] in ["fa", "en", "ar", "tr"] else "fa",
+            "score": row[2] or 0,
+            "state": row[3] or "none"
         }
-    ]
+    return {"name": "", "lang": "fa", "score": 0, "state": "none"}
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(seed_library, f, ensure_ascii=False, indent=2)
-
-
-def ensure_settings_file():
-    path = Path(SETTINGS_PATH)
-    if path.exists():
-        return
-
-    seed_settings = {
-        "daily_quran": [
-            "إِنَّ مَعَ الْعُسْرِ يُسْرًا",
-            "وَبَشِّرِ الصَّابِرِينَ",
-            "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ"
-        ],
-        "daily_hadith": [
-            "بهترین مردم کسی است که برای مردم سودمندتر باشد.",
-            "دانش را بجویید اگرچه در دورترین نقطه باشد.",
-            "هر کس خود را بشناسد، پروردگارش را شناخته است."
-        ]
-    }
-
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(seed_settings, f, ensure_ascii=False, indent=2)
-
-
-def load_library():
-    global library_data
-    ensure_library_file()
-    with open(LIBRARY_PATH, "r", encoding="utf-8") as f:
-        library_data = json.load(f)
-    print("🟢 کتابخانه با موفقیت بارگذاری شد.")
-
-
-# =========================
-# Localization
-# =========================
-TEXTS = {
-    "fa": {
-        "welcome": "سلام {name} 🌷\nبه ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش آمدی.",
-        "choose_lang": "لطفاً زبان را انتخاب کن:",
-        "main_menu": "یکی از گزینه‌های زیر را انتخاب کن:",
-        "ask_ai": "سوالت را بفرست تا پاسخ بدهم.",
-        "ask_search": "عبارت جستجو را بفرست.",
-        "joined_required": "برای استفاده از ربات، ابتدا عضو کانال شوید.",
-        "unknown": "متوجه نشدم. از منوی اصلی یکی از گزینه‌ها را انتخاب کن.",
-        "search_empty": "چیزی پیدا نشد.",
-        "admin_only": "این بخش فقط برای ادمین است.",
-        "daily_sent": "ارسال روزانه انجام شد.",
-        "webhook_ok": "Webhook endpoint is alive."
-    },
-    "en": {
-        "welcome": "Hello {name} 🌷\nWelcome to the Quran and Etrat Center bot.",
-        "choose_lang": "Please choose your language:",
-        "main_menu": "Choose one option:",
-        "ask_ai": "Send your question.",
-        "ask_search": "Send your search query.",
-        "joined_required": "Please join the channel first.",
-        "unknown": "I did not understand. Choose from the main menu.",
-        "search_empty": "Nothing found.",
-        "admin_only": "This section is for admins only.",
-        "daily_sent": "Daily post sent.",
-        "webhook_ok": "Webhook endpoint is alive."
-    },
-    "ar": {
-        "welcome": "مرحباً {name} 🌷\nأهلاً بك في بوت مركز القرآن والعترة.",
-        "choose_lang": "الرجاء اختيار اللغة:",
-        "main_menu": "اختر أحد الخيارات:",
-        "ask_ai": "أرسل سؤالك.",
-        "ask_search": "أرسل عبارة البحث.",
-        "joined_required": "يرجى الانضمام إلى القناة أولاً.",
-        "unknown": "لم أفهم. اختر من القائمة الرئيسية.",
-        "search_empty": "لم يتم العثور على شيء.",
-        "admin_only": "هذا القسم للمشرف فقط.",
-        "daily_sent": "تم الإرسال اليومي.",
-        "webhook_ok": "Webhook endpoint is alive."
-    },
-    "tr": {
-        "welcome": "Merhaba {name} 🌷\nKur'an ve Etrat Merkezi botuna hos geldiniz.",
-        "choose_lang": "Lutfen dil secin:",
-        "main_menu": "Bir secenek secin:",
-        "ask_ai": "Sorunuzu gonderin.",
-        "ask_search": "Arama ifadesini gonderin.",
-        "joined_required": "Lutfen once kanala katilin.",
-        "unknown": "Anlayamadim. Ana menuden bir secenek secin.",
-        "search_empty": "Sonuc bulunamadi.",
-        "admin_only": "Bu bolum sadece yonetici icindir.",
-        "daily_sent": "Gunluk gonderi gonderildi.",
-        "webhook_ok": "Webhook endpoint is alive."
-    }
-}
-
-
-def tr(user_id, key):
-    lang = get_user_language(user_id)
-    return TEXTS.get(lang, TEXTS["fa"]).get(key, key)
-
-
-# =========================
-# User helpers
-# =========================
-def now_str():
-    return datetime.utcnow().isoformat()
-
-
-def log_action(user_id, action):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO logs (user_id, action, created_at) VALUES (?, ?, ?)",
-        (user_id, action, now_str())
-    )
-    conn.commit()
-    conn.close()
-
-
-def upsert_user(user):
-    user_id = user.get("id")
-    if not user_id:
-        return
-
-    conn = get_db()
+def ensure_user(chat_id, name=""):
+    conn = db_conn()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO users (user_id, first_name, last_name, username, joined_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET
-            first_name=excluded.first_name,
-            last_name=excluded.last_name,
-            username=excluded.username
-    """, (
-        user_id,
-        user.get("first_name", ""),
-        user.get("last_name", ""),
-        user.get("username", ""),
-        now_str()
-    ))
+        INSERT OR IGNORE INTO users (chat_id, name, lang, score, state)
+        VALUES (?, ?, 'fa', 0, 'none')
+    """, (chat_id, name))
     conn.commit()
     conn.close()
 
-
-def get_user_language(user_id):
-    conn = get_db()
+def update_user(chat_id, name=None, lang=None, score=None, state=None, score_add=None):
+    conn = db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT language FROM users WHERE user_id = ?", (user_id,))
+    if name is not None:
+        cur.execute("UPDATE users SET name=? WHERE chat_id=?", (name, chat_id))
+    if lang is not None:
+        safe_lang = lang if lang in ["fa", "en", "ar", "tr"] else "fa"
+        cur.execute("UPDATE users SET lang=? WHERE chat_id=?", (safe_lang, chat_id))
+    if score is not None:
+        cur.execute("UPDATE users SET score=? WHERE chat_id=?", (score, chat_id))
+    if score_add is not None:
+        cur.execute("UPDATE users SET score=score+? WHERE chat_id=?", (score_add, chat_id))
+    if state is not None:
+        cur.execute("UPDATE users SET state=? WHERE chat_id=?", (state, chat_id))
+    conn.commit()
+    conn.close()
+
+def get_publish_index(book_name):
+    conn = db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT last_index FROM publish_state WHERE book_name = ?", (book_name,))
     row = cur.fetchone()
     conn.close()
-    return row["language"] if row and row["language"] else "fa"
+    return row[0] if row else 0
 
-
-def set_user_language(user_id, language):
-    conn = get_db()
+def set_publish_index(book_name, index_value):
+    conn = db_conn()
     cur = conn.cursor()
-    cur.execute("UPDATE users SET language = ? WHERE user_id = ?", (language, user_id))
+    cur.execute("UPDATE publish_state SET last_index = ? WHERE book_name = ?", (index_value, book_name))
     conn.commit()
     conn.close()
 
-
-def get_user_state(user_id):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT state, state_data FROM user_states WHERE user_id = ?", (user_id,))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
-        return "", {}
+# =========================================================
+# ۵. ابزارهای ارسال پیام به بله
+# =========================================================
+def send_bale(method, data):
+    url = f"{BASE_URL}/{method}"
     try:
-        state_data = json.loads(row["state_data"]) if row["state_data"] else {}
-    except Exception:
-        state_data = {}
-    return row["state"], state_data
-
-
-def set_user_state(user_id, state, state_data=None):
-    state_data = state_data or {}
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO user_states (user_id, state, state_data)
-        VALUES (?, ?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET
-            state=excluded.state,
-            state_data=excluded.state_data
-    """, (user_id, state, json.dumps(state_data, ensure_ascii=False)))
-    conn.commit()
-    conn.close()
-
-
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
-
-
-# =========================
-# Bale API helpers
-# =========================
-def bale_request(method, payload=None, timeout=20):
-    if not TOKEN:
-        return {"ok": False, "error": "BOT_TOKEN is not set"}
-
-    url = f"{BALE_API_BASE}/{method}"
-    try:
-        resp = requests.post(url, json=payload or {}, timeout=timeout)
-        return resp.json()
+        response = requests.post(url, json=data, timeout=20)
+        return response.json()
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        print(f"BALE API ERROR in {method}: {e}")
+        return None
 
+def answer_callback(callback_query_id, text=None):
+    payload = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text
+    send_bale("answerCallbackQuery", payload)
 
 def send_message(chat_id, text, reply_markup=None):
     payload = {
@@ -362,450 +203,830 @@ def send_message(chat_id, text, reply_markup=None):
     }
     if reply_markup:
         payload["reply_markup"] = reply_markup
-    return bale_request("sendMessage", payload)
+    return send_bale("sendMessage", payload)
 
+# =========================================================
+# ۶. سیستم چندزبانه (FA / EN / AR / TR)
+# =========================================================
+LANGS = {
+    "fa": {
+        "select_lang": "🌍 لطفاً زبان موردنظرت را انتخاب کن:",
+        "welcome": "سلام {name} عزیز! 😍
+به ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش اومدی.
+یکی از گزینه‌های زیر رو انتخاب کن:",
+        "force_join": "🌸 برای استفاده از خدمات ربات، لطفاً ابتدا عضو کانال کانون شو و بعد روی «تأیید عضویت ✅» بزن:
+{channel}",
+        "joined_success": "✅ عضویتت تایید شد. خوش اومدی زندگی!",
+        "not_joined_yet": "🥲 هنوز عضویتت تایید نشده. اول عضو کانال شو، بعد دوباره روی دکمه تأیید بزن.",
+        "ai_prompt": "🤖 سوالت رو بپرس زندگی! من آماده‌ام.",
+        "ai_wait": "⏳ یک لحظه صبر کن... دارم باهوش‌بازی درمیارم!",
+        "admin_msg_prompt": "📩 پیامت رو بنویس تا مستقیم برای ادمین ارسال کنم:",
+        "admin_msg_sent": "✅ پیامت با موفقیت برای ادمین ارسال شد.",
+        "under_construction": "🚧 این بخش هنوز در حال تکمیل است. به‌زودی فعال می‌شود.",
+        "stats": "📊 آمار تو:
 
-def get_chat_member(chat_id, user_id):
-    payload = {
-        "chat_id": chat_id,
-        "user_id": user_id
+👤 نام: {name}
+🏆 امتیاز: {score}",
+        "about": "این ربات توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است. ❤️",
+        "menu": [
+            "📖 جستجوی قرآن",
+            "🤖 هوش مصنوعی",
+            "🌐 جستجوی وب",
+            "📚 مقالات علمی",
+            "🕊️ حدیث و ذکر روز",
+            "✨ قرآن در لحظه",
+            "📢 رویدادها و مسابقات",
+            "📨 ارسال پیام به ادمین",
+            "📊 آمار و امتیاز من",
+            "🏆 لیگ قرآنی",
+            "📋 کارنامه و رتبه",
+            "🌍 تغییر زبان"
+        ],
+        "search_quran_prompt": "📖 کلمه یا عبارت قرآنی موردنظرت رو بفرست تا جستجو کنیم.",
+        "web_search_prompt": "🌐 عبارت موردنظرت رو برای جستجوی وب بفرست.",
+        "article_prompt": "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.",
+        "league_text": "🏆 لیگ قرآنی به‌زودی فعال می‌شود. فعلاً در حال گرم‌کردن موتوریم 😄",
+        "scorecard_text": "📋 کارنامه و رتبه تو به‌زودی اینجا نمایش داده می‌شود.",
+        "events_text": "📢 رویدادها و مسابقات کانون خیلی زود اینجا قرار می‌گیرند.",
+        "unknown_error": "⚠️ یک خطای کوچک رخ داد. دوباره امتحان کن.",
+        "back_to_menu": "🏠 بازگشت به منوی اصلی"
+    },
+    "en": {
+        "select_lang": "🌍 Please choose your language:",
+        "welcome": "Hello {name}! 😍
+Welcome to the Quran & Etrat bot of SUMS.
+Please choose an option:",
+        "force_join": "🌸 To use the bot services, please join our channel first, then click Confirm ✅:
+{channel}",
+        "joined_success": "✅ Membership confirmed. Welcome!",
+        "not_joined_yet": "🥲 Your membership is not confirmed yet. Please join first and try again.",
+        "ai_prompt": "🤖 Ask your question, dear!",
+        "ai_wait": "⏳ Please wait... thinking smart!",
+        "admin_msg_prompt": "📩 Send your message and I’ll forward it to admin:",
+        "admin_msg_sent": "✅ Your message was sent to admin.",
+        "under_construction": "🚧 This section is under construction.",
+        "stats": "📊 Your stats:
+
+👤 Name: {name}
+🏆 Score: {score}",
+        "about": "This bot is designed by the Quran & Etrat Center of Shiraz University of Medical Sciences. ❤️",
+        "menu": [
+            "📖 Quran Search",
+            "🤖 AI Assistant",
+            "🌐 Web Search",
+            "📚 Scientific Articles",
+            "🕊️ Hadith & Daily Dhikr",
+            "✨ Instant Quran",
+            "📢 Events & Contests",
+            "📨 Message Admin",
+            "📊 My Stats",
+            "🏆 Quran League",
+            "📋 Scorecard & Rank",
+            "🌍 Change Language"
+        ],
+        "search_quran_prompt": "📖 Send a Quranic word or phrase to search.",
+        "web_search_prompt": "🌐 Send your web search query.",
+        "article_prompt": "📚 Send your article topic or keyword.",
+        "league_text": "🏆 Quran League will be available soon.",
+        "scorecard_text": "📋 Your scorecard and rank will appear here soon.",
+        "events_text": "📢 Events and contests will be announced here soon.",
+        "unknown_error": "⚠️ A small error occurred. Please try again.",
+        "back_to_menu": "🏠 Back to main menu"
+    },
+    "ar": {
+        "select_lang": "🌍 يرجى اختيار اللغة:",
+        "welcome": "مرحباً {name} 😍
+أهلاً بك في بوت كانون القرآن والعترة.
+اختر أحد الخيارات:",
+        "force_join": "🌸 لاستخدام خدمات البوت، يرجى الانضمام أولاً إلى القناة ثم الضغط على تأكيد ✅:
+{channel}",
+        "joined_success": "✅ تم تأكيد العضوية. أهلاً بك!",
+        "not_joined_yet": "🥲 لم يتم تأكيد العضوية بعد. انضم أولاً ثم حاول مرة أخرى.",
+        "ai_prompt": "🤖 اكتب سؤالك، أنا جاهز!",
+        "ai_wait": "⏳ انتظر قليلاً... أفكر الآن!",
+        "admin_msg_prompt": "📩 اكتب رسالتك ليتم إرسالها إلى المشرف:",
+        "admin_msg_sent": "✅ تم إرسال رسالتك إلى المشرف.",
+        "under_construction": "🚧 هذا القسم قيد التطوير.",
+        "stats": "📊 إحصاءاتك:
+
+👤 الاسم: {name}
+🏆 النقاط: {score}",
+        "about": "تم تصميم هذا البوت بواسطة كانون القرآن والعترة بجامعة شيراز للعلوم الطبية. ❤️",
+        "menu": [
+            "📖 البحث في القرآن",
+            "🤖 الذكاء الاصطناعي",
+            "🌐 البحث في الويب",
+            "📚 مقالات علمية",
+            "🕊️ حديث وذكر اليوم",
+            "✨ قرآن الآن",
+            "📢 الفعاليات والمسابقات",
+            "📨 إرسال رسالة للمشرف",
+            "📊 إحصاءاتي",
+            "🏆 الدوري القرآني",
+            "📋 كشف الدرجات والترتيب",
+            "🌍 تغيير اللغة"
+        ],
+        "search_quran_prompt": "📖 أرسل كلمة أو عبارة للبحث في القرآن.",
+        "web_search_prompt": "🌐 أرسل عبارة البحث.",
+        "article_prompt": "📚 أرسل موضوع المقال أو الكلمة المفتاحية.",
+        "league_text": "🏆 الدوري القرآني سيتوفر قريباً.",
+        "scorecard_text": "📋 سيظهر كشف الدرجات والترتيب هنا قريباً.",
+        "events_text": "📢 ستظهر الفعاليات والمسابقات هنا قريباً.",
+        "unknown_error": "⚠️ حدث خطأ صغير. حاول مرة أخرى.",
+        "back_to_menu": "🏠 العودة إلى القائمة الرئيسية"
+    },
+    "tr": {
+        "select_lang": "🌍 Lütfen dilinizi seçin:",
+        "welcome": "Merhaba {name}! 😍
+Kur'an ve Etrat botuna hoş geldin.
+Lütfen bir seçenek seç:",
+        "force_join": "🌸 Bot hizmetlerini kullanmak için önce kanala katıl, sonra Onayla ✅ düğmesine bas:
+{channel}",
+        "joined_success": "✅ Üyeliğin doğrulandı. Hoş geldin!",
+        "not_joined_yet": "🥲 Üyeliğin henüz doğrulanmadı. Önce katıl, sonra tekrar dene.",
+        "ai_prompt": "🤖 Sorunu yaz, hazırım!",
+        "ai_wait": "⏳ Biraz bekle... düşünüyorum!",
+        "admin_msg_prompt": "📩 Mesajını yaz, yöneticine ileteyim:",
+        "admin_msg_sent": "✅ Mesajın yöneticiye gönderildi.",
+        "under_construction": "🚧 Bu bölüm yapım aşamasında.",
+        "stats": "📊 İstatistiklerin:
+
+👤 Ad: {name}
+🏆 Puan: {score}",
+        "about": "Bu bot, Şiraz Tıp Bilimleri Üniversitesi Kur'an ve Etrat Merkezi tarafından hazırlanmıştır. ❤️",
+        "menu": [
+            "📖 Kur'an Arama",
+            "🤖 Yapay Zeka",
+            "🌐 Web Arama",
+            "📚 Bilimsel Makaleler",
+            "🕊️ Hadis ve Günlük Zikir",
+            "✨ Anlık Kur'an",
+            "📢 Etkinlikler ve Yarışmalar",
+            "📨 Yöneticiye Mesaj",
+            "📊 İstatistiklerim",
+            "🏆 Kur'an Ligi",
+            "📋 Karne ve Sıralama",
+            "🌍 Dili Değiştir"
+        ],
+        "search_quran_prompt": "📖 Aramak için bir kelime veya ifade gönder.",
+        "web_search_prompt": "🌐 Web arama sorgunu gönder.",
+        "article_prompt": "📚 Makale konusu veya anahtar kelime gönder.",
+        "league_text": "🏆 Kur'an Ligi yakında aktif olacak.",
+        "scorecard_text": "📋 Karnen ve sıralaman yakında burada görünecek.",
+        "events_text": "📢 Etkinlikler ve yarışmalar yakında burada olacak.",
+        "unknown_error": "⚠️ Küçük bir hata oluştu. Tekrar dene.",
+        "back_to_menu": "🏠 Ana menüye dön"
     }
-    return bale_request("getChatMember", payload)
+}
 
+HADITHS = [
+    "پیامبر اکرم (ص): بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸",
+    "امام علی (ع): در قرآن بیندیشید که بهار دل‌هاست. ✨",
+    "امام صادق (ع): قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖",
+    "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️"
+]
 
-# =========================
-# Keyboards
-# =========================
-def language_keyboard():
+INSTANT_QURAN = [
+    "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ ❤️",
+    "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا ✨",
+    "لَا تَقْنَطُوا مِنْ رَحْمَةِ اللَّهِ 🌿",
+    "وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ 🤍"
+]
+
+def safe_lang_dict(lang_code):
+    return LANGS.get(lang_code, LANGS["fa"])
+
+def safe_text(lang_code, key, default=None):
+    lang_dict = safe_lang_dict(lang_code)
+    if key in lang_dict:
+        return lang_dict[key]
+    return default if default is not None else LANGS["fa"].get(key, key)
+
+# =========================================================
+# ۷. کیبوردهای اینلاین (۱۲ دکمه‌ای هوشمند)
+# =========================================================
+def lang_keyboard():
     return {
-        "keyboard": [
-            [{"text": "فارسی"}, {"text": "English"}],
-            [{"text": "العربية"}, {"text": "Türkçe"}]
-        ],
-        "resize_keyboard": True
-    }
-
-
-def main_keyboard(lang="fa", is_admin_user=False):
-    rows = {
-        "fa": [
-            [{"text": "📚 جستجوی کتابخانه"}, {"text": "🤖 پرسش از هوش مصنوعی"}],
-            [{"text": "🌐 تغییر زبان"}, {"text": "ℹ️ درباره ربات"}]
-        ],
-        "en": [
-            [{"text": "📚 Library Search"}, {"text": "🤖 Ask AI"}],
-            [{"text": "🌐 Change Language"}, {"text": "ℹ️ About Bot"}]
-        ],
-        "ar": [
-            [{"text": "📚 البحث في المكتبة"}, {"text": "🤖 اسأل الذكاء الاصطناعي"}],
-            [{"text": "🌐 تغيير اللغة"}, {"text": "ℹ️ حول البوت"}]
-        ],
-        "tr": [
-            [{"text": "📚 Kutuphane Arama"}, {"text": "🤖 Yapay Zeka Sor"}],
-            [{"text": "🌐 Dili Degistir"}, {"text": "ℹ️ Bot Hakkinda"}]
+        "inline_keyboard": [
+            [
+                {"text": "🇮🇷 فارسی", "callback_data": "setlang_fa"},
+                {"text": "🇬🇧 English", "callback_data": "setlang_en"}
+            ],
+            [
+                {"text": "🇸🇦 العربية", "callback_data": "setlang_ar"},
+                {"text": "🇹🇷 Türkçe", "callback_data": "setlang_tr"}
+            ]
         ]
     }
 
-    kb = rows.get(lang, rows["fa"])
-    if is_admin_user:
-        kb.append([{"text": "🛠 پنل ادمین"}])
-
+def join_keyboard():
+    channel_username = CHANNEL_ID.replace("@", "")
     return {
-        "keyboard": kb,
-        "resize_keyboard": True
+        "inline_keyboard": [
+            [
+                {"text": "📢 ورود به کانال", "url": f"https://ble.ir/{channel_username}"}
+            ],
+            [
+                {"text": "✅ تایید عضویت", "callback_data": "check_join"}
+            ]
+        ]
     }
 
+def back_menu_keyboard(lang):
+    text = safe_text(lang, "back_to_menu")
+    return {
+        "inline_keyboard": [
+            [{"text": text, "callback_data": "back_main"}]
+        ]
+    }
 
-# =========================
-# Channel membership
-# =========================
-def is_user_joined(user_id):
-    if not CHANNEL_ID:
-        return True
+def main_menu(chat_id, lang):
+    menu_items = safe_lang_dict(lang)["menu"]
+    buttons = []
+    row = []
+    
+    # چیدمان ۲ دکمه در هر سطر برای ساخت منوی ۱۲ دکمه‌ای منظم
+    for i, item in enumerate(menu_items):
+        row.append({"text": item, "callback_data": f"menu_{i}"})
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+            
+    if row:
+        buttons.append(row)
 
-    result = get_chat_member(CHANNEL_ID, user_id)
-    if not result or not result.get("ok"):
-        return True
+    # اتصال پنل مدیریت در صورت بودن کاربر به عنوان ادمین
+    if chat_id == ADMIN_ID:
+        buttons.append([
+            {"text": "🛠️ پنل ادمین", "callback_data": "admin_panel"}
+        ])
 
-    member = result.get("result", {})
-    status = member.get("status", "")
-    return status in ("member", "administrator", "creator")
+    return {"inline_keyboard": buttons}
 
+# =========================================================
+# ۸. عضویت اجباری کانال بله
+# =========================================================
+def check_membership(chat_id):
+    try:
+        result = send_bale("getChatMember", {
+            "chat_id": CHANNEL_ID,
+            "user_id": chat_id
+        })
+        if result and result.get("ok"):
+            status = result.get("result", {}).get("status", "")
+            return status in ["member", "administrator", "creator"]
+        return False
+    except Exception as e:
+        print("Membership check error:", e)
+        return False
 
-# =========================
-# DeepSeek
-# =========================
-def ask_deepseek(prompt, user_lang="fa"):
-    if not DEEPSEEK_API_KEY:
-        return "کلید DeepSeek تنظیم نشده است."
+# =========================================================
+# ۹. اتصال هوش مصنوعی DeepSeek
+# =========================================================
+def ask_deepseek(question, lang):
+    if not DEEPSEEK_KEY or DEEPSEEK_KEY == "YOUR_DEEPSEEK_API_KEY":
+        return "کلید API هوش مصنوعی DeepSeek تعریف نشده است."
 
-    system_prompt = (
-        "You are a helpful Islamic educational assistant for "
-        "Kanoon Quran va Etrat of Shiraz University of Medical Sciences. "
-        "Answer clearly, respectfully, and concisely in the user's language."
-    )
+    language_name = {
+        "fa": "Persian",
+        "en": "English",
+        "ar": "Arabic",
+        "tr": "Turkish"
+    }.get(lang, "Persian")
 
     headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Authorization": f"Bearer {DEEPSEEK_KEY}",
         "Content-Type": "application/json"
     }
 
     payload = {
         "model": "deepseek-chat",
         "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
+            {
+                "role": "system",
+                "content": f"You are a warm, respectful, accurate assistant for a Quranic student bot. Reply in {language_name}. Keep the answer useful and friendly."
+            },
+            {
+                "role": "user",
+                "content": question
+            }
         ],
-        "temperature": 0.5
+        "temperature": 0.7
     }
 
     try:
-        resp = requests.post(DEEPSEEK_API_URL, headers=headers, json=payload, timeout=60)
-        data = resp.json()
-        if "choices" in data and data["choices"]:
-            return data["choices"][0]["message"]["content"].strip()
-        return "پاسخی از مدل دریافت نشد."
-    except Exception as e:
-        return f"خطا در ارتباط با DeepSeek: {e}"
-
-
-# =========================
-# Library search
-# =========================
-def search_library(query):
-    q = query.strip().lower()
-    if not q:
-        return []
-
-    results = []
-    for item in library_data:
-        haystack = " ".join([
-            str(item.get("title", "")),
-            str(item.get("category", "")),
-            str(item.get("author", "")),
-            str(item.get("summary", "")),
-            " ".join(item.get("keywords", []))
-        ]).lower()
-
-        if q in haystack:
-            results.append(item)
-
-    return results[:10]
-
-
-def format_search_results(results):
-    lines = []
-    for idx, item in enumerate(results, start=1):
-        lines.append(
-            f"{idx}. {item.get('title', '-')}\n"
-            f"نویسنده: {item.get('author', '-')}\n"
-            f"دسته: {item.get('category', '-')}\n"
-            f"توضیح: {item.get('summary', '-')}"
+        res = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=40
         )
-    return "\n\n".join(lines)
+        data = res.json()
+        if "choices" in data and len(data["choices"]) > 0:
+            return data["choices"][0]["message"]["content"]
+        print("DeepSeek unexpected response:", data)
+        return "پاسخی از هوش مصنوعی دریافت نشد. لطفاً بعداً تلاش فرمایید."
+    except Exception as e:
+        print("DeepSeek error:", e)
+        return "سیستم ارتباطی با هوش مصنوعی در حال حاضر با وقفه مواجه شده است."
 
+# =========================================================
+# ۱۰. سیستم جستجوی چندگانه متنی در کل کتابخانه
+# =========================================================
+def search_library(q):
+    q = q.strip().lower()
+    results = []
 
-# =========================
-# Daily posts
-# =========================
-def load_settings():
-    ensure_settings_file()
-    with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    # جستجو در قرآن
+    for item in QURAN_DATA:
+        if q in item["text"].lower() or q in item["trans"].lower():
+            results.append(f"📘 قرآن ({item['surah']} - آیه {item['verse']}):
+{item['text']}
+🔹 ترجمه:
+{item['trans']}")
 
+    # جستجو در نهج‌البلاغه
+    for item in NAHJ_DATA:
+        if q in item["text"].lower() or q in item["trans"].lower():
+            results.append(f"📙 نهج‌البلاغه ({item['type']} {item['number']}):
+{item['text']}
+🔹 ترجمه:
+{item['trans']}")
 
-def save_daily_post(content_type, content_text):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO daily_posts (content_type, content_text, created_at) VALUES (?, ?, ?)",
-        (content_type, content_text, now_str())
-    )
-    conn.commit()
-    conn.close()
+    # جستجو در صحیفه سجادیه
+    for item in SAHIFEH_DATA:
+        if q in item["text"].lower() or q in item["trans"].lower():
+            results.append(f"📗 صحیفه سجادیه ({item['title']}):
+{item['text']}
+🔹 ترجمه:
+{item['trans']}")
 
+    return results
+
+# =========================================================
+# ۱۱. مدیریت پردازش وضعیت‌های خاص کاربر (State System)
+# =========================================================
+def handle_state_message(chat_id, text, user):
+    lang = user["lang"]
+    state = user["state"]
+    name = user["name"] or "کاربر گرامی"
+
+    if state == "waiting_ai":
+        send_message(chat_id, safe_text(lang, "ai_wait"))
+        answer = ask_deepseek(text, lang)
+        send_message(chat_id, f"🤖 {answer}", main_menu(chat_id, lang))
+        update_user(chat_id, state="none", score_add=2)
+        return True
+
+    if state == "waiting_admin_msg":
+        send_message(
+            ADMIN_ID,
+            f"📩 پیام جدید از کاربر:
+
+"
+            f"👤 نام: {name}
+"
+            f"🆔 chat_id: {chat_id}
+"
+            f"💬 متن:
+{text}"
+        )
+        send_message(chat_id, safe_text(lang, "admin_msg_sent"), main_menu(chat_id, lang))
+        update_user(chat_id, state="none", score_add=1)
+        return True
+
+    if state == "waiting_quran_search":
+        res = search_library(text)
+        if not res:
+            send_message(chat_id, "نتیجه‌ای یافت نشد. 😔", main_menu(chat_id, lang))
+        else:
+            # ارسال حداکثر ۵ نتیجه برای پرهیز از طولانی شدن اسپم‌وار چت
+            for r in res[:5]:
+                send_message(chat_id, r)
+            send_message(chat_id, "جستجو به پایان رسید. 🌿", main_menu(chat_id, lang))
+        update_user(chat_id, state="none", score_add=1)
+        return True
+
+    if state == "waiting_web_search":
+        send_message(
+            chat_id,
+            f"🌐 جستجوی وب برای عبارت «{text}» به زودی پیاده‌سازی و نهایی می‌گردد.",
+            main_menu(chat_id, lang)
+        )
+        update_user(chat_id, state="none")
+        return True
+
+    if state == "waiting_article":
+        send_message(
+            chat_id,
+            f"📚 مقالات مرتبط با «{text}» به زودی متصل خواهند شد.",
+            main_menu(chat_id, lang)
+        )
+        update_user(chat_id, state="none")
+        return True
+
+    return False
+
+# =========================================================
+# ۱۲. سیستم توزیع روزانه پست‌های کانال (daily scheduler)
+# =========================================================
+def next_item(book_name, data_list):
+    if not data_list:
+        return None, 0
+
+    idx = get_publish_index(book_name)
+    if idx >= len(data_list):
+        idx = 0
+
+    item = data_list[idx]
+    new_idx = idx + 1
+    if new_idx >= len(data_list):
+        new_idx = 0
+
+    set_publish_index(book_name, new_idx)
+    return item, new_idx
+
+def format_daily_message(book_name, item):
+    if not item:
+        return None
+
+    if book_name == "quran":
+        return (
+            f"📘 آیه منتخب روز
+
+"
+            f"سوره {item['surah']} - آیه {item['verse']}
+
+"
+            f"{item['text']}
+
+"
+            f"🔹 ترجمه:
+{item['trans']}"
+        )
+
+    if book_name == "nahj":
+        return (
+            f"📜 فراز روز از نهج‌البلاغه
+
+"
+            f"{item['type']} {item['number']}
+
+"
+            f"{item['text']}
+
+"
+            f"🔹 ترجمه:
+{item['trans']}"
+        )
+
+    if book_name == "sahifeh":
+        return (
+            f"🤲 فراز روز از صحیفه سجادیه
+
+"
+            f"{item['title']} (دعای {item['dua']})
+
+"
+            f"{item['text']}
+
+"
+            f"🔹 ترجمه:
+{item['trans']}"
+        )
+
+    return None
 
 def send_daily_posts():
-    if not CHANNEL_ID:
-        print("⚠️ CHANNEL_ID تنظیم نشده، ارسال روزانه انجام نشد.")
-        return
+    try:
+        # ۱. پست روزانه قرآن
+        q_item, _ = next_item("quran", QURAN_DATA)
+        q_msg = format_daily_message("quran", q_item)
+        if q_msg:
+            send_message(CHANNEL_ID, q_msg)
 
-    settings = load_settings()
-    quran_items = settings.get("daily_quran", [])
-    hadith_items = settings.get("daily_hadith", [])
+        time.sleep(5)
 
-    if quran_items:
-        quran_text = quran_items[int(time.time()) % len(quran_items)]
-        msg = f"📖 آیه روز:\n\n{quran_text}"
-        send_message(CHANNEL_ID, msg)
-        save_daily_post("quran", quran_text)
+        # ۲. پست روزانه نهج‌البلاغه
+        n_item, _ = next_item("nahj", NAHJ_DATA)
+        n_msg = format_daily_message("nahj", n_item)
+        if n_msg:
+            send_message(CHANNEL_ID, n_msg)
 
-    if hadith_items:
-        hadith_text = hadith_items[int(time.time() + 1) % len(hadith_items)]
-        msg = f"🕊 حدیث روز:\n\n{hadith_text}"
-        send_message(CHANNEL_ID, msg)
-        save_daily_post("hadith", hadith_text)
+        time.sleep(5)
 
-    print("✅ ارسال روزانه با موفقیت انجام شد.")
+        # ۳. پست روزانه صحیفه سجادیه
+        s_item, _ = next_item("sahifeh", SAHIFEH_DATA)
+        s_msg = format_daily_message("sahifeh", s_item)
+        if s_msg:
+            send_message(CHANNEL_ID, s_msg)
 
-
-def seconds_until_next_run(hour=8, minute=0):
-    now = datetime.now()
-    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    if target <= now:
-        target = target.replace(day=now.day + 1)
-    return max(60, int((target - now).total_seconds()))
-
+        print("✅ ارسال موفقیت‌آمیز پست‌های دوره‌ای روزانه در کانال انجام شد.")
+    except Exception as e:
+        print("❌ خطا در روند ارسال خودکار روزانه:", e)
 
 def daily_scheduler():
-    print("🟢 Daily scheduler started.")
+    # خوابیدن اولیه برای لود بهتر وب‌سرور
+    time.sleep(30)
     while True:
         try:
             send_daily_posts()
         except Exception as e:
-            print(f"❌ خطا در ارسال روزانه: {e}")
+            print("Scheduler Thread Exception:", e)
 
-        # ساده و کاربردی: هر 24 ساعت
+        # وقفه خواب ۲۴ ساعته
         time.sleep(24 * 60 * 60)
 
-
-def start_scheduler_once():
-    global scheduler_started
-
-    if not ENABLE_SCHEDULER:
-        print("🟡 Scheduler disabled.")
-        return
-
-    with scheduler_lock:
-        if scheduler_started:
-            return
-        t = threading.Thread(target=daily_scheduler, daemon=True)
-        t.start()
-        scheduler_started = True
-
-
-# =========================
-# Message handlers
-# =========================
-def normalize_language_choice(text):
-    mapping = {
-        "فارسی": "fa",
-        "english": "en",
-        "العربية": "ar",
-        "türkçe": "tr",
-        "turkce": "tr"
-    }
-    return mapping.get(text.strip().lower())
-
-
-def handle_start(chat_id, user):
-    user_id = user["id"]
-    name = user.get("first_name", "دوست عزیز")
-    send_message(chat_id, TEXTS["fa"]["welcome"].format(name=name), language_keyboard())
-    set_user_state(user_id, "choosing_language")
-    log_action(user_id, "/start")
-
-
-def handle_language_choice(chat_id, user_id, text):
-    lang = normalize_language_choice(text)
-    if not lang:
-        send_message(chat_id, TEXTS["fa"]["choose_lang"], language_keyboard())
-        return
-
-    set_user_language(user_id, lang)
-    set_user_state(user_id, "")
-    send_message(chat_id, tr(user_id, "main_menu"), main_keyboard(lang, is_admin(user_id)))
-
-
-def handle_main_menu(chat_id, user_id, text):
-    lang = get_user_language(user_id)
-
-    if text in ["🌐 تغییر زبان", "🌐 Change Language", "🌐 تغيير اللغة", "🌐 Dili Degistir"]:
-        set_user_state(user_id, "choosing_language")
-        send_message(chat_id, tr(user_id, "choose_lang"), language_keyboard())
-        return
-
-    if text in ["📚 جستجوی کتابخانه", "📚 Library Search", "📚 البحث في المكتبة", "📚 Kutuphane Arama"]:
-        set_user_state(user_id, "awaiting_search")
-        send_message(chat_id, tr(user_id, "ask_search"))
-        return
-
-    if text in ["🤖 پرسش از هوش مصنوعی", "🤖 Ask AI", "🤖 اسأل الذكاء الاصطناعي", "🤖 Yapay Zeka Sor"]:
-        set_user_state(user_id, "awaiting_ai")
-        send_message(chat_id, tr(user_id, "ask_ai"))
-        return
-
-    if text in ["ℹ️ درباره ربات", "ℹ️ About Bot", "ℹ️ حول البوت", "ℹ️ Bot Hakkinda"]:
-        about_text = (
-            "ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز\n\n"
-            "امکانات:\n"
-            "- جستجو در کتابخانه\n"
-            "- پاسخ‌گویی هوشمند\n"
-            "- پشتیبانی چندزبانه\n"
-            "- ارسال محتوای روزانه"
-        )
-        send_message(chat_id, about_text, main_keyboard(lang, is_admin(user_id)))
-        return
-
-    if text == "🛠 پنل ادمین":
-        if not is_admin(user_id):
-            send_message(chat_id, tr(user_id, "admin_only"))
-            return
-        admin_text = (
-            "پنل ادمین:\n"
-            "/stats - آمار کاربران\n"
-            "/senddaily - ارسال دستی محتوای روزانه"
-        )
-        send_message(chat_id, admin_text, main_keyboard(lang, True))
-        return
-
-    send_message(chat_id, tr(user_id, "unknown"), main_keyboard(lang, is_admin(user_id)))
-
-
-def handle_stateful_message(chat_id, user_id, text):
-    state, _ = get_user_state(user_id)
-    lang = get_user_language(user_id)
-
-    if state == "choosing_language":
-        handle_language_choice(chat_id, user_id, text)
-        return
-
-    if state == "awaiting_search":
-        results = search_library(text)
-        if results:
-            send_message(chat_id, format_search_results(results), main_keyboard(lang, is_admin(user_id)))
-        else:
-            send_message(chat_id, tr(user_id, "search_empty"), main_keyboard(lang, is_admin(user_id)))
-        set_user_state(user_id, "")
-        return
-
-    if state == "awaiting_ai":
-        answer = ask_deepseek(text, lang)
-        send_message(chat_id, answer, main_keyboard(lang, is_admin(user_id)))
-        set_user_state(user_id, "")
-        return
-
-    handle_main_menu(chat_id, user_id, text)
-
-
-def handle_command(chat_id, user, text):
-    user_id = user["id"]
-
-    if text == "/start":
-        handle_start(chat_id, user)
-        return
-
-    if text == "/stats":
-        if not is_admin(user_id):
-            send_message(chat_id, tr(user_id, "admin_only"))
-            return
-
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) AS c FROM users")
-        user_count = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM daily_posts")
-        post_count = cur.fetchone()["c"]
-        conn.close()
-
-        send_message(
-            chat_id,
-            f"📊 آمار ربات\n\nتعداد کاربران: {user_count}\nتعداد ارسال‌های روزانه: {post_count}"
-        )
-        return
-
-    if text == "/senddaily":
-        if not is_admin(user_id):
-            send_message(chat_id, tr(user_id, "admin_only"))
-            return
-        send_daily_posts()
-        send_message(chat_id, tr(user_id, "daily_sent"))
-        return
-
-    handle_stateful_message(chat_id, user_id, text)
-
-
-def extract_message(update):
-    if "message" in update:
-        return update["message"]
-    if "edited_message" in update:
-        return update["edited_message"]
-    return None
-
-
-# =========================
-# Routes
-# =========================
-@app.route("/", methods=["GET"])
-def health():
-    return "MegaBot is running! ✅", 200
-
-
-# این بخش عمداً GET/HEAD را هم قبول می‌کند تا باز کردن آدرس webhook در مرورگر 405 ندهد
-@app.route(f"/{TOKEN}", methods=["GET", "HEAD", "POST"])
+# =========================================================
+# ۱۳. وب هوک و مدیریت یکپارچه درخواست‌ها
+# =========================================================
+@app.route("/", methods=["POST"])
 def webhook():
-    if request.method in ("GET", "HEAD"):
-        return TEXTS["fa"]["webhook_ok"], 200
-
     try:
-        update = request.get_json(force=True, silent=True) or {}
-        message = extract_message(update)
+        data = request.get_json(force=True, silent=True) or {}
 
-        if not message:
-            return jsonify({"ok": True, "ignored": "no_message"}), 200
+        # -------------------------
+        # پردازش پیام‌های عادی متنی
+        # -------------------------
+        if "message" in data:
+            msg = data["message"]
+            chat = msg.get("chat", {})
+            sender = msg.get("from", {})
 
-        chat = message.get("chat", {})
-        user = message.get("from", {})
-        text = message.get("text", "")
+            chat_id = chat.get("id")
+            text = msg.get("text", "")
+            first_name = sender.get("first_name", "زندگی")
 
-        chat_id = chat.get("id")
-        user_id = user.get("id")
+            if not chat_id:
+                return "OK", 200
 
-        if not chat_id or not user_id:
-            return jsonify({"ok": True, "ignored": "missing_ids"}), 200
+            chat_id = int(chat_id)
+            ensure_user(chat_id, first_name)
+            update_user(chat_id, name=first_name)
 
-        upsert_user(user)
+            user = get_user(chat_id)
+            lang = user["lang"]
 
-        if not is_user_joined(user_id):
-            join_text = tr(user_id, "joined_required")
-            if CHANNEL_USERNAME:
-                join_text += f"\n\n@{CHANNEL_USERNAME}"
-            send_message(chat_id, join_text)
-            return jsonify({"ok": True, "blocked": "not_joined"}), 200
+            # استارت ربات
+            if text == "/start" or text == "شروع":
+                update_user(chat_id, state="none")
+                send_message(
+                    chat_id,
+                    safe_text(lang, "select_lang", "لطفاً زبان خود را انتخاب کنید:"),
+                    lang_keyboard()
+                )
+                return "OK", 200
 
-        if text:
-            handle_command(chat_id, user, text.strip())
+            # بررسی عضویت اجباری (جز برای ادمین کل)
+            if chat_id != ADMIN_ID:
+                if not check_membership(chat_id):
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "force_join").format(channel=CHANNEL_ID),
+                        join_keyboard()
+                    )
+                    return "OK", 200
 
-        return jsonify({"ok": True}), 200
+            # اگر کاربر در وضعیت انتظار ورودی خاص (stateful) باشد
+            handled = handle_state_message(chat_id, text, user)
+            if handled:
+                return "OK", 200
+
+            # ارسال منوی اصلی همراه خوش‌آمدگویی
+            send_message(
+                chat_id,
+                safe_text(lang, "welcome").format(name=first_name),
+                main_menu(chat_id, lang)
+            )
+            return "OK", 200
+
+        # -------------------------
+        # کلیک بر دکمه‌های شیشه‌ای (Callback Query)
+        # -------------------------
+        elif "callback_query" in data:
+            cb = data["callback_query"]
+            cb_id = cb.get("id")
+            cb_data = cb.get("data", "")
+            cb_message = cb.get("message", {})
+            chat = cb_message.get("chat", {})
+            sender = cb.get("from", {})
+
+            chat_id = chat.get("id")
+            first_name = sender.get("first_name", "زندگی")
+
+            if not chat_id:
+                return "OK", 200
+
+            chat_id = int(chat_id)
+            ensure_user(chat_id, first_name)
+            update_user(chat_id, name=first_name)
+
+            user = get_user(chat_id)
+            lang = user["lang"]
+
+            if cb_id:
+                answer_callback(cb_id)
+
+            # عملیات تغییر زبان کاربری
+            if cb_data.startswith("setlang_"):
+                new_lang = cb_data.replace("setlang_", "").strip()
+                if new_lang not in LANGS:
+                    new_lang = "fa"
+
+                update_user(chat_id, lang=new_lang, state="none")
+                user = get_user(chat_id)
+                lang = user["lang"]
+
+                if chat_id != ADMIN_ID and not check_membership(chat_id):
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "force_join").format(channel=CHANNEL_ID),
+                        join_keyboard()
+                    )
+                else:
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "welcome").format(name=first_name),
+                        main_menu(chat_id, lang)
+                    )
+                return "OK", 200
+
+            # تایید عضویت در کانال
+            if cb_data == "check_join":
+                if check_membership(chat_id):
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "joined_success"),
+                        main_menu(chat_id, lang)
+                    )
+                else:
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "not_joined_yet"),
+                        join_keyboard()
+                    )
+                return "OK", 200
+
+            # دکمه بازگشت به منوی اصلی
+            if cb_data == "back_main":
+                update_user(chat_id, state="none")
+                send_message(
+                    chat_id,
+                    safe_text(lang, "welcome").format(name=first_name),
+                    main_menu(chat_id, lang)
+                )
+                return "OK", 200
+
+            # جلوگیری از اجرای عملیات زیر در صورت عدم جوین کاربر
+            if chat_id != ADMIN_ID and not check_membership(chat_id):
+                send_message(
+                    chat_id,
+                    safe_text(lang, "force_join").format(channel=CHANNEL_ID),
+                    join_keyboard()
+                )
+                return "OK", 200
+
+            # ورود ادمین به پنل مدیریت
+            if cb_data == "admin_panel":
+                if chat_id != ADMIN_ID:
+                    send_message(chat_id, "⛔ دسترسی غیرمجاز.")
+                    return "OK", 200
+
+                send_message(
+                    chat_id,
+                    "🛠️ پنل ادمین قرآنی
+
+"
+                    f"کل آمار متون در حافظه:
+"
+                    f"📖 آیات قرآن لود شده: {len(QURAN_DATA)}
+"
+                    f"📙 فرازهای نهج‌البلاغه: {len(NAHJ_DATA)}
+"
+                    f"📗 ادعیه صحیفه سجادیه: {len(SAHIFEH_DATA)}
+
+"
+                    "این پنل به زودی دارای قابلیت‌های وسیع آماری و ارسال همگانی خواهد شد.",
+                    main_menu(chat_id, lang)
+                )
+                return "OK", 200
+
+            # پردازش کلیک روی دکمه‌های ۱۲گانه منوی اینلاین اصلی
+            if cb_data.startswith("menu_"):
+                try:
+                    idx = int(cb_data.split("_")[1])
+                except:
+                    idx = -1
+
+                if idx == 0:  # جستجوی قرآن
+                    update_user(chat_id, state="waiting_quran_search")
+                    send_message(chat_id, safe_text(lang, "search_quran_prompt"), back_menu_keyboard(lang))
+
+                elif idx == 1:  # هوش مصنوعی
+                    update_user(chat_id, state="waiting_ai")
+                    send_message(chat_id, safe_text(lang, "ai_prompt"), back_menu_keyboard(lang))
+
+                elif idx == 2:  # جستجوی وب
+                    update_user(chat_id, state="waiting_web_search")
+                    send_message(chat_id, safe_text(lang, "web_search_prompt"), back_menu_keyboard(lang))
+
+                elif idx == 3:  # مقالات علمی
+                    update_user(chat_id, state="waiting_article")
+                    send_message(chat_id, safe_text(lang, "article_prompt"), back_menu_keyboard(lang))
+
+                elif idx == 4:  # حدیث روز
+                    item = random.choice(HADITHS)
+                    send_message(chat_id, f"🕊️ {item}", main_menu(chat_id, lang))
+                    update_user(chat_id, score_add=1)
+
+                elif idx == 5:  # قرآن در لحظه
+                    if QURAN_DATA:
+                        item = random.choice(QURAN_DATA)
+                        msg = f"✨ قرآن در لحظه
+
+📖 {item['text']}
+
+🔹 ترجمه:
+{item['trans']}"
+                        send_message(chat_id, msg, main_menu(chat_id, lang))
+                    else:
+                        item = random.choice(INSTANT_QURAN)
+                        send_message(chat_id, f"✨ {item}", main_menu(chat_id, lang))
+                    update_user(chat_id, score_add=1)
+
+                elif idx == 6:  # رویدادها
+                    send_message(chat_id, safe_text(lang, "events_text"), main_menu(chat_id, lang))
+
+                elif idx == 7:  # پیام به ادمین
+                    update_user(chat_id, state="waiting_admin_msg")
+                    send_message(chat_id, safe_text(lang, "admin_msg_prompt"), back_menu_keyboard(lang))
+
+                elif idx == 8:  # آمار و امتیاز
+                    latest_user = get_user(chat_id)
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "stats").format(
+                            name=first_name,
+                            score=latest_user["score"]
+                        ),
+                        main_menu(chat_id, lang)
+                    )
+
+                elif idx == 9:  # لیگ قرآنی
+                    send_message(chat_id, safe_text(lang, "league_text"), main_menu(chat_id, lang))
+
+                elif idx == 10:  # کارنامه و رتبه
+                    send_message(chat_id, safe_text(lang, "scorecard_text"), main_menu(chat_id, lang))
+
+                elif idx == 11:  # تغییر زبان
+                    send_message(
+                        chat_id,
+                        safe_text(lang, "select_lang"),
+                        lang_keyboard()
+                    )
+
+                else:
+                    send_message(chat_id, safe_text(lang, "under_construction"), main_menu(chat_id, lang))
+
+            return "OK", 200
+
+        return "OK", 200
 
     except Exception as e:
-        print(f"❌ Webhook error: {e}")
-        return jsonify({"ok": False, "error": str(e)}), 200
+        print("WEBHOOK MAIN PROCESS EXCEPTION:", e)
+        return "OK", 200
 
+# =========================================================
+# ۱۴. مسیرهای تست و بررسی صحت عملکرد (health check)
+# =========================================================
+@app.route("/", methods=["GET", "HEAD"])
+def health():
+    return jsonify({
+        "status": "ok",
+        "service": "labbayk_quranbot",
+        "port": os.getenv("PORT", "10000"),
+        "quran_records": len(QURAN_DATA),
+        "nahj_records": len(NAHJ_DATA),
+        "sahifeh_records": len(SAHIFEH_DATA)
+    }), 200
 
-# =========================
-# Startup
-# =========================
+# =========================================================
+# ۱۵. اجرای استارتاپ و سرور وب
+# =========================================================
 def startup():
-    ensure_library_file()
-    ensure_settings_file()
     init_db()
     load_library()
-    start_scheduler_once()
+    
+    # راه‌اندازی نخ پس‌زمینه (Thread) اسکژولر خودکار روزانه
+    sched_thread = threading.Thread(target=daily_scheduler, daemon=True)
+    sched_thread.start()
+    priPORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+```.")
 
-
+# اجرای مقداردهی اولیه سیستم
 startup()
 
-# =========================
-# Local / Worker entrypoint
-# =========================
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) > 1 and sys.argv[1] == "scheduler":
-        ENABLE_SCHEDULER = True
-        start_scheduler_once()
-        while True:
-            time.sleep(3600)
-    else:
-        app.run(host="0.0.0.0", port=PORT, debug=False)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
