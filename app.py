@@ -2,9 +2,8 @@
 """
 ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۰.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
-با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search)
+با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search) با OpenRouter
 با سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه سجادیه + نهج‌البلاغه)
-با کلید API جدید DeepSeek
 تمامی دستورات نسخه‌های قبلی حفظ شده است
 """
 
@@ -60,8 +59,15 @@ if not TOKEN:
     logger.error("⚠️ BOT_TOKEN تنظیم نشده است!")
     raise ValueError("BOT_TOKEN is required")
 
-# کلید جدید DeepSeek
-DEEPSEEK_KEY = "sk-58514dc3adeb4440b977819a2b52069c"
+# کلیدهای API
+# کلید قدیمی DeepSeek (برای سازگاری)
+DEEPSEEK_KEY = "sk-090c2a86847c4583944621a5113d0382"
+
+# کلید جدید OpenRouter
+OPENROUTER_KEY = "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"
+OPENROUTER_MODEL = "deepseek/deepseek-v4-flash:free"  # مدل رایگان
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
@@ -95,7 +101,7 @@ SURVEYS_DATA = {}
 CONVERSATION_HISTORY = {}
 MAHDI_MESSAGES = []
 
-# کلیدهای API
+# کلیدهای API دیگر
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GOOGLE_CX_ID = os.getenv("GOOGLE_CX_ID", "")
 SERP_API_KEY = os.getenv("SERP_API_KEY", "")
@@ -105,7 +111,7 @@ SERP_API_KEY = os.getenv("SERP_API_KEY", "")
 # =========================================================
 FEATURES = {
     "quran_search": True,
-    "deepseek_ai": True,
+    "deepseek_ai": True,  # با OpenRouter کار می‌کند
     "daily_posts": True,
     "hadith_dhikr": True,
     "instant_quran": True,
@@ -921,15 +927,16 @@ def smart_search(query, lang="fa", use_ai=True):
         for item in internet_results:
             results["articles"].append({"title": item.get("title", ""), "summary": item.get("snippet", ""), "link": item.get("link", ""), "source": item.get("source", ""), "category": "اینترنتی"})
     
-    if use_ai and FEATURES["deepseek_ai"] and DEEPSEEK_KEY:
+    if use_ai and FEATURES["deepseek_ai"]:
         try:
+            # استفاده از OpenRouter به جای DeepSeek
             ai_prompt = f"""Based on the following Islamic search results for "{query}", provide a comprehensive and thoughtful response:
 
 Quran Results: {[{'surah': r.get('surah'), 'verse': r.get('verse'), 'text': r.get('text')} for r in results['quran'][:3]]}
 Hadith Results: {[{'hadith': r.get('hadith'), 'source': r.get('source')} for r in results['hadith'][:2]]}
 
 Please provide a complete, warm, and insightful answer that combines these sources with your knowledge. Explain the spiritual and practical significance for medical professionals and students. Keep the tone friendly and inspiring."""
-            ai_response = ask_deepseek(ai_prompt, lang)
+            ai_response = ask_ai(ai_prompt, lang)
             results["ai_response"] = ai_response
         except Exception as e:
             logger.error(f"خطا در پاسخ AI: {e}")
@@ -2077,23 +2084,23 @@ def send_chat_action(chat_id, action="typing"):
     return send_bale("sendChatAction", {"chat_id": chat_id, "action": action})
 
 # =========================================================
-# ۲۷. هوش مصنوعی DeepSeek (با کلید جدید)
+# ۲۷. هوش مصنوعی OpenRouter (جایگزین DeepSeek)
 # =========================================================
-def ask_deepseek(question, lang):
-    """ارسال سوال به DeepSeek با مدیریت خطا و کلید جدید"""
+def ask_ai(question, lang):
+    """ارسال سوال به OpenRouter با مدیریت خطا"""
     
     # بررسی فعال بودن هوش مصنوعی
     if not FEATURES["deepseek_ai"]:
         return "🔧 ویژگی هوش مصنوعی در حال حاضر غیرفعال است."
     
-    # بررسی کلید API جدید
-    if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 20:
-        logger.error("❌ کلید DeepSeek نامعتبر یا کوتاه است")
+    # بررسی کلید API OpenRouter
+    if not OPENROUTER_KEY or len(OPENROUTER_KEY) < 10:
+        logger.error("❌ کلید OpenRouter تنظیم نشده است!")
         return "🔑 کلید API تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
     
     # محدودیت نرخ درخواست
     current_time = time.time()
-    chat_id = int(time.time()) % 10000  # موقت - بهتر است chat_id واقعی دریافت شود
+    chat_id = int(time.time()) % 10000
     
     if chat_id in RATE_LIMIT_COUNTER:
         if current_time - RATE_LIMIT_TIME.get(chat_id, 0) < 60:
@@ -2133,15 +2140,17 @@ Always mention Quranic verses or Hadith when appropriate."""
     for msg in CONVERSATION_HISTORY[conversation_key][-5:]:
         messages.append(msg)
     
-    # هدرهای درخواست
+    # هدرهای درخواست OpenRouter
     headers = {
-        "Authorization": f"Bearer {DEEPSEEK_KEY}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {OPENROUTER_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://t.me/labbayk_quranbot",
+        "X-Title": "Quran Bot"
     }
     
-    # بدنه درخواست با مدل بهینه
+    # بدنه درخواست
     payload = {
-        "model": "deepseek-chat",
+        "model": OPENROUTER_MODEL,
         "messages": messages,
         "temperature": 0.7,
         "max_tokens": 800,
@@ -2151,7 +2160,7 @@ Always mention Quranic verses or Hadith when appropriate."""
     try:
         # ارسال درخواست
         res = requests.post(
-            "https://api.deepseek.com/chat/completions",
+            OPENROUTER_URL,
             headers=headers,
             json=payload,
             timeout=45
@@ -2171,11 +2180,11 @@ Always mention Quranic verses or Hadith when appropriate."""
         
         # مدیریت خطاهای مختلف
         elif res.status_code == 401:
-            logger.error("❌ خطای احراز هویت DeepSeek: کلید API نامعتبر است")
+            logger.error("❌ خطای احراز هویت OpenRouter: کلید API نامعتبر است")
             return "🔑 کلید API نامعتبر است. لطفاً با ادمین تماس بگیرید."
         
         elif res.status_code == 402:
-            logger.error("❌ خطای موجودی DeepSeek: اعتبار کافی نیست")
+            logger.error("❌ خطای موجودی OpenRouter: اعتبار کافی نیست")
             return "💳 اعتبار حساب تمام شده است. لطفاً با ادمین تماس بگیرید."
         
         elif res.status_code == 429:
@@ -2185,7 +2194,7 @@ Always mention Quranic verses or Hadith when appropriate."""
             return "⚠️ سرور هوش مصنوعی با مشکل مواجه شده است. دوباره تلاش کنید."
         
         else:
-            logger.error(f"❌ خطای DeepSeek: {res.status_code} - {res.text[:200]}")
+            logger.error(f"❌ خطای OpenRouter: {res.status_code} - {res.text[:200]}")
             return f"⚠️ خطا در ارتباط با هوش مصنوعی (کد {res.status_code})."
     
     except requests.exceptions.Timeout:
@@ -2195,8 +2204,13 @@ Always mention Quranic verses or Hadith when appropriate."""
         return "⚠️ خطا در ارتباط با سرور هوش مصنوعی. اتصال اینترنت را بررسی کنید."
     
     except Exception as e:
-        logger.error(f"❌ خطای غیرمنتظره DeepSeek: {e}")
+        logger.error(f"❌ خطای غیرمنتظره OpenRouter: {e}")
         return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً دوباره تلاش کنید."
+
+# تابع پشتیبان برای سازگاری با نسخه‌های قبلی
+def ask_deepseek(question, lang):
+    """تابع پشتیبان برای سازگاری با نسخه‌های قبلی"""
+    return ask_ai(question, lang)
 
 # =========================================================
 # ۲۸. کیبوردهای اینلاین (۳ ستون)
@@ -3540,7 +3554,7 @@ def handle_state_message(chat_id, text, user):
     # وضعیت هوش مصنوعی
     if state == "waiting_ai":
         send_message(chat_id, safe_text(lang, "ai_wait"))
-        answer = ask_deepseek(text, lang)
+        answer = ask_ai(text, lang)
         send_message(chat_id, f"🤖 {answer}", main_menu(chat_id, lang))
         update_user(chat_id, state="none", score=2)
         update_user_score(chat_id, "ai_question", user)
@@ -3750,11 +3764,12 @@ def startup():
         load_library()
         logger.info("✅ کتابخانه بارگذاری شد.")
         
-        if DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 20:
-            logger.info("✅ کلید DeepSeek جدید تنظیم شده است.")
+        # بررسی کلید OpenRouter
+        if OPENROUTER_KEY and len(OPENROUTER_KEY) > 10:
+            logger.info("✅ کلید OpenRouter تنظیم شده است.")
             FEATURES["deepseek_ai"] = True
         else:
-            logger.warning("⚠️ کلید DeepSeek نامعتبر است.")
+            logger.warning("⚠️ کلید OpenRouter نامعتبر است.")
             FEATURES["deepseek_ai"] = False
         
         if FEATURES["daily_posts"]:
@@ -3810,7 +3825,7 @@ def startup():
         logger.info(f"📖 تعداد آیات قرآن: {len(QURAN_DATA)}")
         logger.info(f"📜 تعداد فرازهای نهج‌البلاغه: {len(NAHJ_DATA)}")
         logger.info(f"🤲 تعداد دعاهای صحیفه: {len(SAHIFEH_DATA)}")
-        logger.info(f"🔑 وضعیت DeepSeek: {'فعال ✅' if FEATURES['deepseek_ai'] else 'غیرفعال ❌'}")
+        logger.info(f"🤖 وضعیت هوش مصنوعی: {'فعال ✅' if FEATURES['deepseek_ai'] else 'غیرفعال ❌'}")
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
 
