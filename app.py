@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۳.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۴.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی پیشرفته
 """
@@ -82,6 +82,11 @@ SEARCH_CACHE = {}
 RATE_LIMIT_COUNTER = {}
 RATE_LIMIT_TIME = {}
 
+# کلیدهای API برای جستجوی اینترنتی
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+GOOGLE_CX_ID = os.getenv("GOOGLE_CX_ID", "")
+SERP_API_KEY = os.getenv("SERP_API_KEY", "")
+
 # =========================================================
 # ۲. Feature Flags (کنترل ویژگی‌ها با تنظیمات پویا)
 # =========================================================
@@ -107,7 +112,8 @@ FEATURES = {
     "best_user_weekly": True,
     "referral_system": True,
     "arabic_language": True,
-    "islamic_knowledge_engine": True
+    "islamic_knowledge_engine": True,
+    "internet_search": True
 }
 
 # =========================================================
@@ -1008,223 +1014,106 @@ def get_greeting(lang):
             return "Good Night 🌙"
 
 # =========================================================
-# ۱۳. سیستم چندزبانه (توسعه‌یافته با زبان عربی و فارسی‌محور)
+# ۱۳. جستجوی اینترنتی واقعی (Google Search, SerpAPI, OpenAlex)
 # =========================================================
-LANGS = {
-    "fa": {
-        "select_lang": "🌍 لطفاً زبان موردنظرت را انتخاب کن:",
-        "welcome": "سلام {name} عزیز! 😍\nبه ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش آمدی.\n\n🌟 همراه همیشگی تو در مسیر نور و معرفت.\n\nاز منوی زیر انتخاب کن:",
-        "force_join": "🌸 سلام {name} جان!\n\nبرای استفاده از ربات، لطفاً ابتدا عضو کانال کانون قرآن شو:\n{channel}\n\nپس از عضویت، دوباره /start را بزن.",
-        "joined_success": "✅ عضویتت تایید شد. خوش اومدی زندگی! 🌸",
-        "not_joined_yet": "🥲 هنوز عضویتت تایید نشده. اول عضو کانال شو، بعد دوباره روی دکمه تأیید بزن.",
-        "ai_prompt": "🤖 سوالت رو بپرس زندگی! من با عشق جواب می‌دم.",
-        "ai_wait": "⏳ یک لحظه صبر کن... دارم با تمام وجود فکر می‌کنم!",
-        "admin_msg_prompt": "📩 با خیال راحت پیامت رو بنویس. من می‌رسونم به ادمین.",
-        "admin_msg_sent": "✅ پیامت با عشق برای ادمین ارسال شد. 🙏",
-        "under_construction": "🚧 این بخش در حال زیباتر شدن است. به‌زودی می‌آید.",
-        "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
-        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجوی هوشمند اسلامی با ترجمه و تفسیر 🧠\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی از گوگل اسکالر 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n• پشتیبانی از زبان عربی 🇸🇦\n\n💚 همراه همیشگی تو در مسیر نور",
-        "daily_enable": "✅ دریافت روزانه فعال شد. هر روز با عشق محتوای جدید می‌فرستم.",
-        "daily_disable": "❌ دریافت روزانه غیرفعال شد. هر وقت خواستی فعالش کن.",
-        "daily_toggle": "🔔 دریافت روزانه",
-        "back_to_menu": "🏠 برگشت به منوی اصلی",
-        "search_quran_prompt": "📖 کلمه یا عبارت مورد نظرت رو بفرست تا با عشق جستجو کنیم.",
-        "article_prompt": "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.",
-        "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}\n\n💡 برای کسب امتیاز:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝",
-        "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n👑 عنوان: {title}\n✅ کوئست‌ها: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
-        "events_text": "📢 رویدادها و مسابقات کانون:\n\n🔹 جشنواره قرآن و عترت\n🔹 مسابقات حفظ و مفاهیم قرآن\n🔹 کارگاه‌های تفسیر و تدبر\n🔹 برنامه‌های ماه رمضان\n🔹 جلسات هفتگی قرآن\n🔹 مسابقات مقاله‌نویسی قرآنی\n\n📌 برای اطلاعات بیشتر به کانال مراجعه کن.",
-        "unknown_error": "⚠️ یه خطای کوچک رخ داد. دوباره امتحان کن، مطمئنم موفق می‌شی.",
-        "article_result": "📚 نتایج جستجوی مقالات علمی برای «{query}»:\n\n{results}\n\n💡 اگر نتیجه‌ای نیافتی، می‌تونی از مقالات پیشنهادی ما استفاده کنی.",
-        "feedback_score_msg": "✅ پیشنهاد ارزشمند شما ثبت شد. {score} امتیاز به شما تعلق گرفت! 🌸",
-        "feedback_no_score": "✅ پیشنهاد شما ثبت شد. برای دریافت امتیاز بیشتر، پیشنهاد خود را دقیق‌تر و تأثیرگذارتر بنویسید. 💪",
-        "broadcast_prompt": "📢 لطفاً متن اطلاع‌رسانی عمومی را ارسال کنید:",
-        "broadcast_success": "✅ پیام همگانی با موفقیت به {count} کاربر ارسال شد. 🌸",
-        "broadcast_error": "⚠️ متنی برای ارسال وجود ندارد.",
-        "admin_panel": "🛠️ پنل ادمین",
-        "admin_stats": "📊 آمار ربات",
-        "admin_feedbacks": "📩 لیست انتقادات",
-        "admin_broadcast": "📢 ارسال همگانی",
-        "admin_users": "👥 لیست کاربران",
-        "admin_schedule": "⏰ تنظیمات زمان‌بندی",
-        "admin_features": "⚙️ کنترل ویژگی‌ها",
-        "admin_logs": "📋 گزارش خطاها",
-        "admin_back": "🔄 بازگشت",
-        "admin_system": "💻 وضعیت سیستم",
-        "admin_achievements": "🏅 مدیریت دستاوردها",
-        "admin_best_users": "🏆 بهترین کاربران",
-        "admin_referrals": "🤝 آمار دعوت‌ها",
-        "menu_labels": {
-            "islamic_search": "🧠 جستجوی هوشمند اسلامی",
-            "ai": "🤖 هوش مصنوعی",
-            "articles": "📚 مقالات علمی",
-            "hadith": "🕊️ حدیث و ذکر روز",
-            "instant_quran": "✨ قرآن در لحظه",
-            "events": "📢 رویدادها و مسابقات",
-            "feedback": "📝 پیشنهاد/انتقاد",
-            "admin_msg": "📨 پیام به ادمین",
-            "stats": "📊 آمار من",
-            "league": "🏆 لیگ قرآنی",
-            "scorecard": "📋 کارنامه من",
-            "change_lang": "🌍 تغییر زبان",
-            "daily_toggle": "🔔 دریافت روزانه",
-            "about": "ℹ️ درباره ربات",
-            "help": "❓ راهنما",
-            "share": "📤 اشتراک‌گذاری",
-            "reminder": "⏰ یادآوری",
-            "quests": "🎯 کوئست‌های روزانه",
-            "best_users": "🏅 بهترین کاربران",
-            "referral": "🤝 دعوت از دوستان"
-        }
-    },
-    "en": {
-        "select_lang": "🌍 Please choose your language:",
-        "welcome": "Hello {name}! 😍\nWelcome to the Quran & Etrat bot of SUMS.\nPlease choose an option:",
-        "force_join": "🌸 To use the bot services, please join our channel first:\n{channel}\n\nThen press /start again.",
-        "joined_success": "✅ Membership confirmed. Welcome!",
-        "not_joined_yet": "🥲 Your membership is not confirmed yet. Please join first.",
-        "ai_prompt": "🤖 Ask your question, dear!",
-        "ai_wait": "⏳ Please wait... thinking smart!",
-        "admin_msg_prompt": "📩 Send your message and I'll forward it to admin:",
-        "admin_msg_sent": "✅ Your message was sent to admin.",
-        "under_construction": "🚧 This section is under construction.",
-        "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
-        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Smart Islamic Search with interpretation 🧠\n• AI Assistant 🤖\n• Scientific Articles from Google Scholar 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝\n• Arabic Language Support 🇸🇦",
-        "daily_enable": "✅ Daily receive enabled.",
-        "daily_disable": "❌ Daily receive disabled.",
-        "daily_toggle": "🔔 Daily Receive",
-        "back_to_menu": "🏠 Back to main menu",
-        "search_quran_prompt": "📖 Send a word or phrase to search.",
-        "article_prompt": "📚 Send your article topic or keyword.",
-        "league_text": "🏆 Quran League:\n\n{leaderboard}\n\n💡 To earn points:\n• Quran Search 📖\n• Send feedback 📝\n• Daily visit 🌅\n• Read Hadith 🕊️\n• Invite friends 🤝",
-        "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n👑 Title: {title}\n✅ Quests: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
-        "events_text": "📢 Events and contests:\n\n🔹 Quran and Etrat Festival\n🔹 Memorization contests\n🔹 Interpretation workshops\n🔹 Ramadan programs\n🔹 Weekly Quran sessions\n🔹 Quranic writing contests",
-        "unknown_error": "⚠️ A small error occurred. Please try again.",
-        "article_result": "📚 Scientific article results for «{query}»:\n\n{results}\n\n💡 If no results found, try our suggested articles.",
-        "feedback_score_msg": "✅ Your valuable suggestion was recorded. You earned {score} points! 🌸",
-        "feedback_no_score": "✅ Your suggestion was recorded. To earn more points, write a more detailed suggestion. 💪",
-        "broadcast_prompt": "📢 Please send the broadcast message:",
-        "broadcast_success": "✅ Broadcast sent successfully to {count} users. 🌸",
-        "broadcast_error": "⚠️ No message to send.",
-        "admin_panel": "🛠️ Admin Panel",
-        "admin_stats": "📊 Bot Statistics",
-        "admin_feedbacks": "📩 Feedback List",
-        "admin_broadcast": "📢 Broadcast",
-        "admin_users": "👥 User List",
-        "admin_schedule": "⏰ Schedule Settings",
-        "admin_features": "⚙️ Feature Flags",
-        "admin_logs": "📋 Error Logs",
-        "admin_back": "🔄 Back",
-        "admin_system": "💻 System Status",
-        "admin_achievements": "🏅 Manage Achievements",
-        "admin_best_users": "🏆 Best Users",
-        "admin_referrals": "🤝 Referral Stats",
-        "menu_labels": {
-            "islamic_search": "🧠 Smart Islamic Search",
-            "ai": "🤖 AI Assistant",
-            "articles": "📚 Scientific Articles",
-            "hadith": "🕊️ Hadith & Dhikr",
-            "instant_quran": "✨ Instant Quran",
-            "events": "📢 Events & Contests",
-            "feedback": "📝 Suggestion/Critique",
-            "admin_msg": "📨 Message Admin",
-            "stats": "📊 My Stats",
-            "league": "🏆 Quran League",
-            "scorecard": "📋 My Scorecard",
-            "change_lang": "🌍 Change Language",
-            "daily_toggle": "🔔 Daily Receive",
-            "about": "ℹ️ About Bot",
-            "help": "❓ Help",
-            "share": "📤 Share",
-            "reminder": "⏰ Reminder",
-            "quests": "🎯 Daily Quests",
-            "best_users": "🏅 Best Users",
-            "referral": "🤝 Invite Friends"
-        }
-    },
-    "ar": {
-        "select_lang": "🌍 الرجاء اختيار لغتك:",
-        "welcome": "مرحباً {name}! 😍\nمرحباً بك في بوت القرآن والعترة بجامعة علوم الطب شيراز.\nالرجاء اختيار خيار:",
-        "force_join": "🌸 للاستفادة من خدمات البوت، الرجاء الانضمام إلى قناتنا أولاً:\n{channel}\n\nثم اضغط /start مرة أخرى.",
-        "joined_success": "✅ تم تأكيد العضوية. مرحباً بك!",
-        "not_joined_yet": "🥲 لم يتم تأكيد عضويتك بعد. الرجاء الانضمام أولاً.",
-        "ai_prompt": "🤖 اسأل سؤالك، عزيزي!",
-        "ai_wait": "⏳ الرجاء الانتظار... جاري التفكير!",
-        "admin_msg_prompt": "📩 أرسل رسالتك وسأقوم بإرسالها إلى المشرف:",
-        "admin_msg_sent": "✅ تم إرسال رسالتك إلى المشرف.",
-        "under_construction": "🚧 هذا القسم قيد الإنشاء.",
-        "stats": "📊 إحصائياتك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n📅 تاريخ الانضمام: {join_date}\n👑 اللقب: {title}\n🎯 الزيارات: {visits}\n✅ المهام المنجزة: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
-        "about": "🌸 تم تصميم هذا البوت بحب من قبل مركز القرآن والعترة بجامعة علوم الطب شيراز.\n\n📚 الميزات:\n• البحث الإسلامي الذكي مع الترجمة والتفسير 🧠\n• المساعد الذكي 🤖\n• المقالات العلمية من جوجل سكولار 📚\n• الحديث والذكر اليومي 🕊️\n• القرآن في لحظة ✨\n• بطاقة النتائج والدوري القرآني 🏆\n• الاستلام اليومي 🔔\n• الاقتراحات والنقد مع النقاط ⭐\n• المهام اليومية 🎯\n• أفضل مستخدمي اليوم والأسبوع 🏅\n• نظام الدعوة والمكافآت 🤝\n• دعم اللغة العربية 🇸🇦",
-        "daily_enable": "✅ تم تفعيل الاستلام اليومي.",
-        "daily_disable": "❌ تم تعطيل الاستلام اليومي.",
-        "daily_toggle": "🔔 الاستلام اليومي",
-        "back_to_menu": "🏠 العودة إلى القائمة الرئيسية",
-        "search_quran_prompt": "📖 أرسل كلمة أو عبارة للبحث.",
-        "article_prompt": "📚 أرسل موضوع المقال أو الكلمة المفتاحية.",
-        "league_text": "🏆 الدوري القرآني:\n\n{leaderboard}\n\n💡 لكسب النقاط:\n• البحث في القرآن 📖\n• إرسال اقتراح 📝\n• الزيارة اليومية 🌅\n• قراءة الحديث 🕊️\n• دعوة الأصدقاء 🤝",
-        "scorecard_text": "📋 بطاقة نتائجك وترتيبك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n🎯 الترتيب: {rank}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n👑 اللقب: {title}\n✅ المهام: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
-        "events_text": "📢 الفعاليات والمسابقات:\n\n🔹 مهرجان القرآن والعترة\n🔹 مسابقات حفظ وتفسير القرآن\n🔹 ورش التفسير والتدبر\n🔹 برامج شهر رمضان\n🔹 جلسات القرآن الأسبوعية\n🔹 مسابقات الكتابة القرآنية",
-        "unknown_error": "⚠️ حدث خطأ بسيط. الرجاء المحاولة مرة أخرى.",
-        "article_result": "📚 نتائج البحث عن المقالات العلمية لـ «{query}»:\n\n{results}\n\n💡 إذا لم تجد نتائج، جرب مقالاتنا المقترحة.",
-        "feedback_score_msg": "✅ تم تسجيل اقتراحك القيم. حصلت على {score} نقاط! 🌸",
-        "feedback_no_score": "✅ تم تسجيل اقتراحك. للحصول على نقاط أكثر، اكتب اقتراحاً أكثر تفصيلاً. 💪",
-        "broadcast_prompt": "📢 الرجاء إرسال نص الإعلان العام:",
-        "broadcast_success": "✅ تم إرسال الإعلان بنجاح إلى {count} مستخدم. 🌸",
-        "broadcast_error": "⚠️ لا يوجد نص للإرسال.",
-        "admin_panel": "🛠️ لوحة المشرف",
-        "admin_stats": "📊 إحصائيات البوت",
-        "admin_feedbacks": "📩 قائمة الاقتراحات",
-        "admin_broadcast": "📢 إعلان عام",
-        "admin_users": "👥 قائمة المستخدمين",
-        "admin_schedule": "⏰ إعدادات الجدولة",
-        "admin_features": "⚙️ التحكم في الميزات",
-        "admin_logs": "📋 سجل الأخطاء",
-        "admin_back": "🔄 العودة",
-        "admin_system": "💻 حالة النظام",
-        "admin_achievements": "🏅 إدارة الإنجازات",
-        "admin_best_users": "🏆 أفضل المستخدمين",
-        "admin_referrals": "🤝 إحصائيات الدعوات",
-        "menu_labels": {
-            "islamic_search": "🧠 البحث الإسلامي الذكي",
-            "ai": "🤖 المساعد الذكي",
-            "articles": "📚 المقالات العلمية",
-            "hadith": "🕊️ الحديث والذكر اليومي",
-            "instant_quran": "✨ القرآن في لحظة",
-            "events": "📢 الفعاليات والمسابقات",
-            "feedback": "📝 اقتراح/نقد",
-            "admin_msg": "📨 رسالة إلى المشرف",
-            "stats": "📊 إحصائياتي",
-            "league": "🏆 الدوري القرآني",
-            "scorecard": "📋 بطاقة نتائجي",
-            "change_lang": "🌍 تغيير اللغة",
-            "daily_toggle": "🔔 الاستلام اليومي",
-            "about": "ℹ️ عن البوت",
-            "help": "❓ المساعدة",
-            "share": "📤 مشاركة",
-            "reminder": "⏰ تذكير",
-            "quests": "🎯 المهام اليومية",
-            "best_users": "🏅 أفضل المستخدمين",
-            "referral": "🤝 دعوة الأصدقاء"
-        }
-    }
-}
-
-def safe_lang_dict(lang_code):
-    """دریافت دیکشنری زبان با پشتیبانی از خطا"""
-    return LANGS.get(lang_code, LANGS["fa"])
-
-def safe_text(lang_code, key, default=None, **kwargs):
-    """دریافت متن با پشتیبانی از جایگزینی و خطا"""
-    lang_dict = safe_lang_dict(lang_code)
-    text = lang_dict.get(key, default if default is not None else key)
-    if kwargs:
+def internet_search(query, lang="fa"):
+    """جستجوی واقعی از اینترنت با استفاده از چند منبع"""
+    if not FEATURES["internet_search"]:
+        return "🔧 جستجوی اینترنتی در حال حاضر غیرفعال است."
+    
+    results = []
+    
+    # ۱. تلاش با Google Custom Search API
+    if GOOGLE_API_KEY and GOOGLE_CX_ID:
         try:
-            return text.format(**kwargs)
-        except:
-            return text
-    return text
+            url = "https://www.googleapis.com/customsearch/v1"
+            params = {
+                "key": GOOGLE_API_KEY,
+                "cx": GOOGLE_CX_ID,
+                "q": query,
+                "num": 5
+            }
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                for item in data.get("items", [])[:5]:
+                    results.append({
+                        "title": item.get("title", "بدون عنوان"),
+                        "snippet": item.get("snippet", ""),
+                        "link": item.get("link", ""),
+                        "source": "Google"
+                    })
+        except Exception as e:
+            logger.error(f"خطا در جستجوی گوگل: {e}")
+    
+    # ۲. تلاش با SerpAPI
+    if SERP_API_KEY and not results:
+        try:
+            url = "https://serpapi.com/search"
+            params = {
+                "api_key": SERP_API_KEY,
+                "q": query,
+                "num": 5,
+                "hl": "fa" if lang == "fa" else "en"
+            }
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                for item in data.get("organic_results", [])[:5]:
+                    results.append({
+                        "title": item.get("title", "بدون عنوان"),
+                        "snippet": item.get("snippet", ""),
+                        "link": item.get("link", ""),
+                        "source": "SerpAPI"
+                    })
+        except Exception as e:
+            logger.error(f"خطا در جستجوی SerpAPI: {e}")
+    
+    # ۳. تلاش با OpenAlex برای مقالات علمی
+    if not results:
+        try:
+            url = f"https://api.openalex.org/works?search={query.replace(' ', '+')}&per-page=5"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                for work in data.get("results", [])[:5]:
+                    title = work.get("title", "بدون عنوان")
+                    doi = work.get("doi", "")
+                    link = f"https://doi.org/{doi}" if doi else ""
+                    results.append({
+                        "title": title,
+                        "snippet": work.get("abstract", "")[:200],
+                        "link": link,
+                        "source": "OpenAlex"
+                    })
+        except Exception as e:
+            logger.error(f"خطا در جستجوی OpenAlex: {e}")
+    
+    return results
+
+def format_internet_results(results, query):
+    """فرمت‌بندی نتایج جستجوی اینترنتی"""
+    if not results:
+        return f"🔍 نتیجه‌ای برای «{query}» در اینترنت یافت نشد.\n\n💡 لطفاً عبارت دیگری را جستجو کنید."
+    
+    output = f"🌐 <b>نتایج جستجوی اینترنتی - «{query}»</b>\n{'='*50}\n\n"
+    
+    for i, item in enumerate(results[:5], 1):
+        output += f"{i}. <b>{item['title']}</b>\n"
+        if item.get('snippet'):
+            output += f"   📝 {item['snippet'][:200]}...\n"
+        if item.get('link'):
+            output += f"   🔗 <a href='{item['link']}'>{item['link'][:50]}...</a>\n"
+        if item.get('source'):
+            output += f"   📌 منبع: {item['source']}\n"
+        output += "\n"
+    
+    output += "💡 برای اطلاعات بیشتر، می‌توانید از بخش «هوش مصنوعی» سوال بپرسید."
+    
+    return output
 
 # =========================================================
-# ۱۴. موتور جستجوی هوشمند اسلامی (ادغام شده با جستجوی قرآن)
+# ۱۴. موتور جستجوی هوشمند اسلامی (ادغام شده با جستجوی اینترنتی)
 # =========================================================
 def expand_topic(query):
     """توسعه موضوع با مترادف‌ها و کلمات کلیدی و تطابق فازی"""
@@ -1248,13 +1137,13 @@ def expand_topic(query):
     
     return list(set(expanded_terms))
 
-def advanced_search(query):
-    """جستجوی پیشرفته در تمام منابع اسلامی با کش"""
+def advanced_search(query, lang="fa"):
+    """جستجوی پیشرفته در تمام منابع اسلامی + اینترنت"""
     if not FEATURES["islamic_knowledge_engine"]:
         return None
     
     # چک کردن کش
-    cache_key = hashlib.md5(query.encode()).hexdigest()
+    cache_key = hashlib.md5(f"{query}_{lang}".encode()).hexdigest()
     if cache_key in SEARCH_CACHE:
         logger.info(f"جستجو از کش: {query}")
         return SEARCH_CACHE[cache_key]
@@ -1265,7 +1154,8 @@ def advanced_search(query):
         "nahj": [],
         "sahifeh": [],
         "hadith": [],
-        "articles": []
+        "articles": [],
+        "internet": []
     }
     
     # جستجو در قرآن
@@ -1325,7 +1215,7 @@ def advanced_search(query):
                 results["hadith"].append(item)
                 break
     
-    # جستجو در مقالات
+    # جستجو در مقالات محلی
     for item in LOCAL_ARTICLES:
         search_text = " ".join([
             str(item.get("title", "")),
@@ -1339,12 +1229,18 @@ def advanced_search(query):
                 results["articles"].append(item)
                 break
     
+    # جستجوی اینترنتی
+    if FEATURES["internet_search"]:
+        internet_results = internet_search(query, lang)
+        results["internet"] = internet_results
+    
     # محدود کردن نتایج
     results["quran"] = results["quran"][:5]
     results["nahj"] = results["nahj"][:3]
     results["sahifeh"] = results["sahifeh"][:3]
     results["hadith"] = results["hadith"][:3]
     results["articles"] = results["articles"][:3]
+    results["internet"] = results["internet"][:3]
     
     # ذخیره در کش
     SEARCH_CACHE[cache_key] = results
@@ -1352,15 +1248,12 @@ def advanced_search(query):
     return results
 
 def format_advanced_results(results, query, lang="fa"):
-    """فرمت‌بندی نتایج جستجوی پیشرفته"""
+    """فرمت‌بندی نتایج جستجوی پیشرفته با نتایج اینترنتی"""
     if not results:
         return f"🔍 نتیجه‌ای برای «{query}» در منابع اسلامی یافت نشد.\n\n💡 سعی کنید با کلمات کلیدی دیگری جستجو کنید."
     
     has_results = False
-    output = f"""🧠 <b>موتور جستجوی هوشمند اسلامی - «{query}»</b>
-{'='*50}
-
-"""
+    output = f"🧠 <b>موتور جستجوی هوشمند اسلامی - «{query}»</b>\n{'='*50}\n\n"
     
     # قرآن
     if results["quran"]:
@@ -1415,6 +1308,20 @@ def format_advanced_results(results, query, lang="fa"):
             output += f"{i}. <b>{item['title']}</b>\n"
             output += f"   📝 {item['summary']}\n"
             output += f"   🏷️ دسته: {item['category']}\n\n"
+    
+    # نتایج اینترنتی
+    if results["internet"]:
+        has_results = True
+        output += "🌐 <b>نتایج جستجوی اینترنتی:</b>\n\n"
+        for i, item in enumerate(results["internet"][:3], 1):
+            output += f"{i}. <b>{item['title']}</b>\n"
+            if item.get('snippet'):
+                output += f"   📝 {item['snippet'][:150]}...\n"
+            if item.get('link'):
+                output += f"   🔗 <a href='{item['link']}'>{item['link'][:50]}...</a>\n"
+            if item.get('source'):
+                output += f"   📌 منبع: {item['source']}\n"
+            output += "\n"
     
     if not has_results:
         return f"🔍 نتیجه‌ای برای «{query}» در منابع اسلامی یافت نشد.\n\n💡 سعی کنید با کلمات کلیدی دیگری جستجو کنید."
@@ -1548,8 +1455,8 @@ def search_articles(query):
     
     results = []
     
+    # ۱. تلاش با OpenAlex
     try:
-        # تلاش برای جستجو در OpenAlex (که شامل مقالات گوگل اسکالر هم می‌شود)
         url = f"https://api.openalex.org/works?search={query.replace(' ', '+')}&per-page=5&filter=topics.id:T10194,T10195,T10196"
         response = requests.get(url, timeout=15)
         
@@ -1572,20 +1479,18 @@ def search_articles(query):
                     if link:
                         result_text += f"\n🔗 <a href='{link}'>{link}</a>"
                     results.append(result_text)
-        
-        # اگر نتیج‌های نیافت یا خطا بود، از مقالات محلی استفاده کن
-        if not results:
-            return search_local_articles(query)
-        
-        final_result = '\n\n'.join(results)
-        # ذخیره در کش
-        ARTICLE_CACHE[cache_key] = final_result
-        save_library_file(ARTICLES_FILE, ARTICLE_CACHE)
-        return final_result
-        
     except Exception as e:
-        logger.error(f"خطا در جستجوی مقالات: {e}")
+        logger.error(f"خطا در جستجوی OpenAlex: {e}")
+    
+    # ۲. اگر نتیجه‌ای نیافت، از مقالات محلی استفاده کن
+    if not results:
         return search_local_articles(query)
+    
+    final_result = '\n\n'.join(results)
+    # ذخیره در کش
+    ARTICLE_CACHE[cache_key] = final_result
+    save_library_file(ARTICLES_FILE, ARTICLE_CACHE)
+    return final_result
 
 def search_local_articles(query):
     """جستجو در مقالات محلی به عنوان پشتیبان"""
@@ -2118,7 +2023,7 @@ def next_item(book_name, data_list):
 # ۲۱. مدیریت پردازش وضعیت‌های خاص کاربر (توسعه‌یافته)
 # =========================================================
 def handle_state_message(chat_id, text, user):
-    """پردازش پیام‌های وضعیت‌دار کاربر"""
+    """پردازش پیام‌های وضعیت‌دار کاربر با مکالمات صمیمی"""
     lang = user["lang"]
     state = user["state"]
     name = user["name"] or "کاربر گرامی"
@@ -2160,13 +2065,13 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
 
-    # وضعیت جستجوی پیشرفته اسلامی (ادغام شده با جستجوی قرآن)
+    # وضعیت جستجوی پیشرفته اسلامی (ادغام شده با جستجوی قرآن و اینترنت)
     if state == "waiting_quran_search":
         send_chat_action(chat_id, "typing")
         
         # استفاده از موتور جستجوی پیشرفته
         try:
-            results = advanced_search(text)
+            results = advanced_search(text, lang)
             if results:
                 formatted_result = format_advanced_results(results, text, lang)
                 send_message(chat_id, formatted_result, main_menu(chat_id, lang))
@@ -2449,7 +2354,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "13.0",
+        "version": "14.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "quran_records": len(QURAN_DATA),
@@ -2463,6 +2368,7 @@ def health():
         "port": PORT,
         "supported_languages": ["fa", "en", "ar"],
         "islamic_knowledge_engine": FEATURES["islamic_knowledge_engine"],
+        "internet_search": FEATURES["internet_search"],
         "jdatetime_installed": HAS_JDATETIME
     }), 200
 
@@ -2480,7 +2386,7 @@ def webhook_check():
 # =========================================================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook_token():
-    """پردازش تمام درخواست‌های ورودی"""
+    """پردازش تمام درخواست‌های ورودی با مکالمات صمیمی"""
     try:
         data = request.get_json(force=True, silent=True) or {}
         
@@ -2529,7 +2435,7 @@ def webhook_token():
             user = get_user(chat_id)
             lang = user["lang"]
 
-            # پردازش دستور /start
+            # پردازش دستور /start با پیام صمیمی
             if text == "/start" or text == "شروع" or text == "/start@labbayk_quranbot":
                 update_user(chat_id, state="none")
                 send_message(
@@ -2561,11 +2467,11 @@ def webhook_token():
                     return "OK", 200
             except Exception as e:
                 logger.error(f"خطا در پردازش وضعیت: {e}")
-                send_message(chat_id, "⚠️ خطایی در پردازش پیام رخ داد. لطفاً دوباره تلاش کنید.")
+                send_message(chat_id, "⚠️ یه خطای کوچیک رخ داد! 😅\nلطفاً دوباره تلاش کن، مطمئنم این بار موفق میشی! 🌸")
                 update_user(chat_id, state="none")
                 return "OK", 200
 
-            # نمایش منوی اصلی با پیام خوش‌آمدگویی پویا
+            # نمایش منوی اصلی با پیام خوش‌آمدگویی پویا و صمیمی
             greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
             
             # دریافت عنوان کاربر و توضیحات آن
@@ -2577,21 +2483,21 @@ def webhook_token():
 
 {first_name} جان! 😍
 
+چقدر خوشحالم که به جمع ما پیوندی! 🌸
+
 به ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش آمدی.
-👑 عنوان شما: {title}
+👑 عنوان تو: {title}
 💡 {title_desc}
 
-✨ اینجا همراه همیشگی تو در مسیر نور و معرفت است:
+✨ اینجا یه همراه همیشگی برای مسیر نور و معرفتته:
 • جستجوی هوشمند اسلامی با ترجمه و تفسیر 🧠
-• هوش مصنوعی پاسخ‌گو 🤖
-• مقالات علمی از گوگل اسکالر 📚
+• هوش مصنوعی که هر سوالی داری جواب میده 🤖
+• مقالات علمی از سراسر دنیا 📚
 • حدیث و ذکر روزانه 🕊️
 • قرآن در لحظه ✨
-• پیشنهاد و انتقاد با امتیاز ⭐
-• کوئست‌های روزانه 🎯
-• سیستم دعوت و پاداش 🤝
+• و کلی قابلیت دیگه که منتظرت هستن!
 
-👇 از منوی زیبای زیر استفاده کن:"""
+👇 بیا از منوی زیر انتخاب کن و لذت ببر:"""
             else:
                 welcome_text = safe_text(lang, "welcome", name=first_name)
             
@@ -2697,7 +2603,7 @@ def webhook_token():
                 if lang == "fa":
                     send_message(
                         chat_id,
-                        f"{greeting}\n\n{first_name} جان! 🍃\nبه منوی اصلی خوش اومدی.\n👑 عنوان: {title}",
+                        f"{greeting}\n\n{first_name} جان! 🍃\nخوش برگشتی به خانه خودت! 🌸\n👑 عنوان: {title}",
                         main_menu(chat_id, lang)
                     )
                 else:
@@ -2725,14 +2631,14 @@ def webhook_token():
                     logger.error(f"خطا در بررسی عضویت: {e}")
 
             # ===========================
-            # جستجوی هوشمند اسلامی (ادغام شده)
+            # جستجوی هوشمند اسلامی (ادغام شده با اینترنت)
             # ===========================
             if cb_data == "menu_islamic_search":
                 update_user(chat_id, state="waiting_quran_search")
                 if lang == "fa":
                     msg = f"""🧠 <b>جستجوی هوشمند اسلامی</b>
 
-🔍 کلمه یا موضوع مورد نظر خود را وارد کنید:
+🔍 کلمه یا موضوع مورد نظرت رو وارد کن:
 
 💡 <b>این موتور پیشرفته در تمام منابع زیر جستجو می‌کند:</b>
 
@@ -2741,6 +2647,7 @@ def webhook_token():
 🤲 <b>صحیفه سجادیه</b> - دعاهای نورانی
 🕊️ <b>احادیث</b> - روایات معصومین با ذکر
 📚 <b>مقالات علمی</b> - از گوگل اسکالر
+🌐 <b>اینترنت</b> - از سراسر دنیا
 
 🔍 <b>قابلیت‌های پیشرفته:</b>
 • تشخیص خودکار موضوع و مترادف‌ها
@@ -2753,7 +2660,7 @@ def webhook_token():
 • «استرس» → آیات آرامش، دعاهای مرتبط، مقالات روانشناسی
 • «امید» → آیات امید، حکمت‌های امید، مقالات امیدواری
 
-📝 لطفاً عبارت خود را ارسال کنید:"""
+📝 لطفاً عبارت خود را ارسال کن:"""
                 else:
                     msg = safe_text(lang, "search_quran_prompt")
                 send_message(chat_id, msg, back_menu_keyboard(lang))
@@ -3105,8 +3012,7 @@ def webhook_token():
                     send_message(chat_id, "👥 هنوز کاربری ثبت نشده است.", admin_menu(chat_id, lang))
                 return "OK", 200
 
-            # ===========================
-            # تنظیمات زمان‌بندی
+            # ===========================            # تنظیمات زمان‌بندی
             # ===========================
             if cb_data == "admin_schedule":
                 if chat_id != ADMIN_ID:
@@ -3370,6 +3276,7 @@ https://ble.ir/{bot_username}"""
 • عبارت مورد نظر را وارد کنید
 • نتایج از قرآن، نهج‌البلاغه، صحیفه سجادیه، احادیث و مقالات
 • با کلمات کلیدی مانند «صبر»، «امید»، «استرس» جستجوی معنایی انجام می‌شود
+• جستجوی اینترنتی از سراسر دنیا 🌐
 
 🤖 <b>هوش مصنوعی:</b>
 • هر سوال قرآنی یا دینی دارید بپرسید
@@ -3433,7 +3340,7 @@ https://ble.ir/{bot_username}"""
                     if lang == "fa":
                         msg = f"""🧠 <b>جستجوی هوشمند اسلامی</b>
 
-🔍 کلمه یا موضوع مورد نظر خود را وارد کنید:
+🔍 کلمه یا موضوع مورد نظرت رو وارد کن:
 
 💡 <b>این موتور پیشرفته در تمام منابع زیر جستجو می‌کند:</b>
 
@@ -3442,6 +3349,7 @@ https://ble.ir/{bot_username}"""
 🤲 <b>صحیفه سجادیه</b> - دعاهای نورانی
 🕊️ <b>احادیث</b> - روایات معصومین با ذکر
 📚 <b>مقالات علمی</b> - از گوگل اسکالر
+🌐 <b>اینترنت</b> - از سراسر دنیا
 
 🔍 <b>قابلیت‌های پیشرفته:</b>
 • تشخیص خودکار موضوع و مترادف‌ها
@@ -3454,7 +3362,7 @@ https://ble.ir/{bot_username}"""
 • «استرس» → آیات آرامش، دعاهای مرتبط، مقالات روانشناسی
 • «امید» → آیات امید، حکمت‌های امید، مقالات امیدواری
 
-📝 لطفاً عبارت خود را ارسال کنید:"""
+📝 لطفاً عبارت خود را ارسال کن:"""
                     else:
                         msg = safe_text(lang, "search_quran_prompt")
                     send_message(chat_id, msg, back_menu_keyboard(lang))
@@ -4004,6 +3912,7 @@ def startup():
         logger.info(f"🌐 سرور روی پورت {PORT} در حال اجراست...")
         logger.info(f"🌍 زبان‌های پشتیبانی: فارسی, English, العربية")
         logger.info(f"🧠 موتور دانش اسلامی: {'فعال' if FEATURES['islamic_knowledge_engine'] else 'غیرفعال'}")
+        logger.info(f"🌐 جستجوی اینترنتی: {'فعال' if FEATURES['internet_search'] else 'غیرفعال'}")
         logger.info(f"📅 تاریخ شمسی: {'فعال' if HAS_JDATETIME else 'غیرفعال (استفاده از میلادی)'}")
         
     except Exception as e:
