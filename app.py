@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۹.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۰.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search)
 با سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه سجادیه + نهج‌البلاغه)
+با کلید API جدید DeepSeek
 تمامی دستورات نسخه‌های قبلی حفظ شده است
 """
 
@@ -59,7 +60,8 @@ if not TOKEN:
     logger.error("⚠️ BOT_TOKEN تنظیم نشده است!")
     raise ValueError("BOT_TOKEN is required")
 
-DEEPSEEK_KEY = "sk-090c2a86847c4583944621a5113d0382"
+# کلید جدید DeepSeek
+DEEPSEEK_KEY = "sk-58514dc3adeb4440b977819a2b52069c"
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
@@ -2075,55 +2077,126 @@ def send_chat_action(chat_id, action="typing"):
     return send_bale("sendChatAction", {"chat_id": chat_id, "action": action})
 
 # =========================================================
-# ۲۷. هوش مصنوعی DeepSeek
+# ۲۷. هوش مصنوعی DeepSeek (با کلید جدید)
 # =========================================================
 def ask_deepseek(question, lang):
+    """ارسال سوال به DeepSeek با مدیریت خطا و کلید جدید"""
+    
+    # بررسی فعال بودن هوش مصنوعی
     if not FEATURES["deepseek_ai"]:
-        return "🔧 این ویژگی غیرفعال است."
-    if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
-        return "🔑 کلید API تنظیم نشده است."
+        return "🔧 ویژگی هوش مصنوعی در حال حاضر غیرفعال است."
+    
+    # بررسی کلید API جدید
+    if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 20:
+        logger.error("❌ کلید DeepSeek نامعتبر یا کوتاه است")
+        return "🔑 کلید API تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
+    
+    # محدودیت نرخ درخواست
     current_time = time.time()
-    chat_id = int(time.time()) % 10000
+    chat_id = int(time.time()) % 10000  # موقت - بهتر است chat_id واقعی دریافت شود
+    
     if chat_id in RATE_LIMIT_COUNTER:
         if current_time - RATE_LIMIT_TIME.get(chat_id, 0) < 60:
             RATE_LIMIT_COUNTER[chat_id] = RATE_LIMIT_COUNTER.get(chat_id, 0) + 1
             if RATE_LIMIT_COUNTER[chat_id] > 5:
-                return "⏳ تعداد درخواست‌ها زیاد شده است."
+                return "⏳ تعداد درخواست‌ها زیاد شده است. چند لحظه صبر کنید."
         else:
             RATE_LIMIT_COUNTER[chat_id] = 1
             RATE_LIMIT_TIME[chat_id] = current_time
     else:
         RATE_LIMIT_COUNTER[chat_id] = 1
         RATE_LIMIT_TIME[chat_id] = current_time
+    
+    # تنظیمات زبان
+    language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
+    
+    # سیستم پرامپت
+    system_prompt = f"""You are a warm, respectful Islamic assistant for a Quranic student bot. 
+Reply in {language_name}. Keep answers:
+- Useful and practical
+- Friendly and encouraging
+- Well-formatted with emojis
+- Focused on Islamic teachings (Quran, Hadith, Dua)
+- Relevant for medical students and professionals
+Always mention Quranic verses or Hadith when appropriate."""
+    
+    # آماده‌سازی پیام‌ها
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": question}
+    ]
+    
+    # اضافه کردن تاریخچه مکالمه
     conversation_key = f"conv_{chat_id}"
     if conversation_key not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_key] = []
-    language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
-    headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"}
-    messages = [{"role": "system", "content": f"You are a warm, respectful assistant for a Quranic student bot. Reply in {language_name}. Keep answers useful, friendly, and well-formatted."}]
     for msg in CONVERSATION_HISTORY[conversation_key][-5:]:
         messages.append(msg)
-    messages.append({"role": "user", "content": question})
-    payload = {"model": "deepseek-chat", "messages": messages, "temperature": 0.7, "max_tokens": 1000}
+    
+    # هدرهای درخواست
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    # بدنه درخواست با مدل بهینه
+    payload = {
+        "model": "deepseek-chat",
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 800,
+        "stream": False
+    }
+    
     try:
-        res = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=45)
+        # ارسال درخواست
+        res = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=45
+        )
+        
+        # بررسی پاسخ
         if res.status_code == 200:
             data = res.json()
             if "choices" in data and data["choices"]:
                 answer = data["choices"][0]["message"]["content"]
+                
+                # ذخیره تاریخچه
                 CONVERSATION_HISTORY[conversation_key].append({"role": "user", "content": question})
                 CONVERSATION_HISTORY[conversation_key].append({"role": "assistant", "content": answer})
+                
                 return answer
-            return "⚠️ پاسخ نامعتبر بود."
+        
+        # مدیریت خطاهای مختلف
         elif res.status_code == 401:
-            return "🔑 کلید API نامعتبر است."
+            logger.error("❌ خطای احراز هویت DeepSeek: کلید API نامعتبر است")
+            return "🔑 کلید API نامعتبر است. لطفاً با ادمین تماس بگیرید."
+        
+        elif res.status_code == 402:
+            logger.error("❌ خطای موجودی DeepSeek: اعتبار کافی نیست")
+            return "💳 اعتبار حساب تمام شده است. لطفاً با ادمین تماس بگیرید."
+        
         elif res.status_code == 429:
-            time.sleep(5)
-            return "⏳ تعداد درخواست‌ها محدود شده است."
-        return f"⚠️ خطا در ارتباط با هوش مصنوعی (کد {res.status_code})."
+            return "⏳ تعداد درخواست‌ها محدود شده است. چند لحظه دیگر تلاش کنید."
+        
+        elif res.status_code == 500:
+            return "⚠️ سرور هوش مصنوعی با مشکل مواجه شده است. دوباره تلاش کنید."
+        
+        else:
+            logger.error(f"❌ خطای DeepSeek: {res.status_code} - {res.text[:200]}")
+            return f"⚠️ خطا در ارتباط با هوش مصنوعی (کد {res.status_code})."
+    
+    except requests.exceptions.Timeout:
+        return "⏳ زمان پاسخ‌دهی هوش مصنوعی به پایان رسید. دوباره تلاش کنید."
+    
+    except requests.exceptions.ConnectionError:
+        return "⚠️ خطا در ارتباط با سرور هوش مصنوعی. اتصال اینترنت را بررسی کنید."
+    
     except Exception as e:
-        logger.error(f"خطای DeepSeek: {e}")
-        return "⚠️ خطا در ارتباط با هوش مصنوعی."
+        logger.error(f"❌ خطای غیرمنتظره DeepSeek: {e}")
+        return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً دوباره تلاش کنید."
 
 # =========================================================
 # ۲۸. کیبوردهای اینلاین (۳ ستون)
@@ -3650,7 +3723,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "19.0",
+        "version": "20.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "total_users": get_user_count(),
@@ -3677,8 +3750,8 @@ def startup():
         load_library()
         logger.info("✅ کتابخانه بارگذاری شد.")
         
-        if DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 10:
-            logger.info("✅ کلید DeepSeek تنظیم شده است.")
+        if DEEPSEEK_KEY and len(DEEPSEEK_KEY) > 20:
+            logger.info("✅ کلید DeepSeek جدید تنظیم شده است.")
             FEATURES["deepseek_ai"] = True
         else:
             logger.warning("⚠️ کلید DeepSeek نامعتبر است.")
@@ -3737,6 +3810,7 @@ def startup():
         logger.info(f"📖 تعداد آیات قرآن: {len(QURAN_DATA)}")
         logger.info(f"📜 تعداد فرازهای نهج‌البلاغه: {len(NAHJ_DATA)}")
         logger.info(f"🤲 تعداد دعاهای صحیفه: {len(SAHIFEH_DATA)}")
+        logger.info(f"🔑 وضعیت DeepSeek: {'فعال ✅' if FEATURES['deepseek_ai'] else 'غیرفعال ❌'}")
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
 
