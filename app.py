@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۷.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۹.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search)
+با سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه سجادیه + نهج‌البلاغه)
 تمامی دستورات نسخه‌های قبلی حفظ شده است
 """
 
@@ -135,7 +136,7 @@ FEATURES = {
 }
 
 # =========================================================
-# ۳. سیستم چندزبانه کامل
+# ۳. سیستم چندزبانه کامل (به‌روز شده با ترجمه‌های جدید)
 # =========================================================
 LANGS = {
     "fa": {
@@ -182,6 +183,9 @@ LANGS = {
         "admin_referrals": "🤝 آمار دعوت‌ها",
         "admin_weekly_report": "📊 گزارش هفتگی",
         "admin_surveys": "📝 نظرسنجی‌ها",
+        "daily_quran_title": "📘 آیه منتخب روز - قرآن کریم",
+        "daily_sahifeh_title": "🤲 دعای منتخب روز - صحیفه سجادیه",
+        "daily_nahj_title": "📜 فراز منتخب روز - نهج‌البلاغه",
         "menu_labels": {
             "smart_search": "🧠 جستجوی هوشمند",
             "hadith": "🕊️ حدیث و ذکر روز",
@@ -251,6 +255,9 @@ LANGS = {
         "admin_referrals": "🤝 Referral Stats",
         "admin_weekly_report": "📊 Weekly Report",
         "admin_surveys": "📝 Surveys",
+        "daily_quran_title": "📘 Daily Quran Verse",
+        "daily_sahifeh_title": "🤲 Daily Sahifeh Supplication",
+        "daily_nahj_title": "📜 Daily Nahjul Balagha",
         "menu_labels": {
             "smart_search": "🧠 Smart Search",
             "hadith": "🕊️ Hadith & Dhikr",
@@ -320,6 +327,9 @@ LANGS = {
         "admin_referrals": "🤝 إحصائيات الدعوات",
         "admin_weekly_report": "📊 التقرير الأسبوعي",
         "admin_surveys": "📝 الاستطلاعات",
+        "daily_quran_title": "📘 آية مختارة من القرآن الكريم",
+        "daily_sahifeh_title": "🤲 دعاء مختار من الصحيفة السجادية",
+        "daily_nahj_title": "📜 نص مختار من نهج البلاغة",
         "menu_labels": {
             "smart_search": "🧠 البحث الذكي",
             "hadith": "🕊️ الحديث والذكر اليومي",
@@ -363,7 +373,7 @@ def safe_text(lang_code, key, default=None, **kwargs):
     return text
 
 # =========================================================
-# ۴. داده‌های مهدویت
+# ۴. داده‌های مهدویت (جذاب‌تر شده)
 # =========================================================
 MAHDI_MESSAGES_DATA = [
     {"id": "mahdi_salawat_5", "title": "🕊️ ۵ صلوات برای امام زمان", "desc": "۵ صلوات هدیه به امام زمان (عج)", "points": 3, "message": "🌟 امروز ۵ صلوات برای ظهور امام زمان (عج) هدیه بفرست!\nاللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ 🌸"},
@@ -376,7 +386,7 @@ MAHDI_MESSAGES_DATA = [
 ]
 
 # =========================================================
-# ۵. داده‌های اولیه و نمونه
+# ۵. داده‌های اولیه و نمونه (با محتوای بیشتر برای چرخش)
 # =========================================================
 DEFAULT_QURAN_SEED = [
     {"index": 1, "surah": "حمد", "verse": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "trans": "به نام خداوند بخشنده مهربان", "interpretation": "شروع هر کار با نام خدا، نشانه توکل و ایمان است.", "topics": ["ایمان", "توکل", "شروع", "بسم الله"]},
@@ -384,15 +394,31 @@ DEFAULT_QURAN_SEED = [
     {"index": 3, "surah": "حمد", "verse": 3, "text": "الرَّحْمَٰنِ الرَّحِيمِ", "trans": "بخشنده و مهربان است", "interpretation": "رحمانیت خدا، الگوی پزشکان در مهربانی با بیماران است.", "topics": ["رحمت", "مهربانی", "بخشش"]},
     {"index": 4, "surah": "حمد", "verse": 4, "text": "مَالِكِ يَوْمِ الدِّينِ", "trans": "مالک روز جزاست", "interpretation": "روز جزا یادآور مسئولیت پزشکان در قبال جان انسان‌هاست.", "topics": ["جزا", "مسئولیت", "حسابرسی"]},
     {"index": 5, "surah": "حمد", "verse": 5, "text": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", "trans": "تنها تو را می‌پرستیم و تنها از تو یاری می‌جوییم", "interpretation": "پزشکان در درمان بیماران، به خداوند توکل کنند.", "topics": ["عبادت", "توکل", "یاری"]},
+    {"index": 6, "surah": "بقره", "verse": 1, "text": "الم", "trans": "الف، لام، میم", "interpretation": "حروف مقطعه، رمز عظمت قرآن.", "topics": ["قرآن", "عظمت"]},
+    {"index": 7, "surah": "بقره", "verse": 2, "text": "ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِّلْمُتَّقِينَ", "trans": "این کتابی است که هیچ شکی در آن نیست و مایه هدایت برای پرهیزگاران است", "interpretation": "قرآن کتاب هدایت برای متقین است.", "topics": ["هدایت", "تقوا", "قرآن"]},
+    {"index": 8, "surah": "بقره", "verse": 3, "text": "الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنفِقُونَ", "trans": "کسانی که به غیب ایمان دارند و نماز را برپا می‌دارند و از آنچه روزی‌شان داده‌ایم انفاق می‌کنند", "interpretation": "مؤمنان واقعی، اهل ایمان، نماز و انفاق هستند.", "topics": ["ایمان", "نماز", "انفاق"]},
+    {"index": 9, "surah": "بقره", "verse": 4, "text": "وَالَّذِينَ يُؤْمِنُونَ بِمَا أُنزِلَ إِلَيْكَ وَمَا أُنزِلَ مِن قَبْلِكَ وَبِالْآخِرَةِ هُمْ يُوقِنُونَ", "trans": "و به آنچه بر تو و پیش از تو نازل شده ایمان دارند و به آخرت یقین دارند", "interpretation": "ایمان به همه کتب آسمانی و روز قیامت.", "topics": ["ایمان", "آخرت", "کتب آسمانی"]},
+    {"index": 10, "surah": "بقره", "verse": 5, "text": "أُولَٰئِكَ عَلَىٰ هُدًى مِّن رَّبِّهِمْ ۖ وَأُولَٰئِكَ هُمُ الْمُفْلِحُونَ", "trans": "ایشان از جانب پروردگارشان بر هدایتند و ایشان رستگارانند", "interpretation": "رستگاری در گرو هدایت الهی است.", "topics": ["رستگاری", "هدایت"]},
 ]
 
 DEFAULT_NAHJ_SEED = [
     {"index": 1, "type": "خطبه", "number": 1, "text": "الْحَمْدُ لِلَّهِ الَّذِی لَا یَبْلُغُ مِدْحَتَهُ الْقَائِلُونَ", "trans": "ستایش خدایی را که سخنوران در ستودن او فرومانند", "interpretation": "عظمت خداوند فراتر از توصیف است.", "topics": ["عظمت خدا", "ستایش"]},
     {"index": 2, "type": "حکمت", "number": 1, "text": "كُنْ فِي الْفِتْنَةِ كَابْنِ اللَّبُونِ", "trans": "در فتنه‌ها چونان شتر دو ساله باش", "interpretation": "در بحران‌های پزشکی، متواضع باش.", "topics": ["فتنه", "تواضع", "بحران"]},
+    {"index": 3, "type": "خطبه", "number": 2, "text": "مَا زَالَ اللَّهُ يُرِيدُ بِكُمُ الْخَيْرَ", "trans": "خداوند همواره خیر شما را می‌خواهد", "interpretation": "خداوند برای بندگانش خیر می‌خواهد.", "topics": ["خیر", "رحمت"]},
+    {"index": 4, "type": "نامه", "number": 1, "text": "إِلَى مَالِكٍ الْأَشْتَرِ", "trans": "نامه به مالک اشتر", "interpretation": "نامه به مالک اشتر، فرمان حکومتی.", "topics": ["حکومت", "عدالت"]},
+    {"index": 5, "type": "حکمت", "number": 2, "text": "مَنْ أَبْطَأَ بِهِ عَمَلُهُ لَمْ يُسْرِعْ بِهِ نَسَبُهُ", "trans": "هر که را عملش کند کند، نسبش تندش نمی‌کند", "interpretation": "ارزش انسان به عمل اوست، نه به نسب.", "topics": ["عمل", "ارزش"]},
+    {"index": 6, "type": "خطبه", "number": 3, "text": "إِنَّ اللَّهَ سُبْحَانَهُ لَمْ يَخْلُقِ الْخَلْقَ عَبَثًا", "trans": "خداوند متعال، خلقت را بیهوده نیافریده است", "interpretation": "هستی هدفمند است.", "topics": ["هدفمندی", "خلقت"]},
+    {"index": 7, "type": "حکمت", "number": 3, "text": "الصَّبْرُ صَبْرَانِ: صَبْرٌ عَلَى مَا تَكْرَهُ، وَصَبْرٌ عَمَّا تُحِبُّ", "trans": "صبر دو گونه است: صبر بر ناخوشایندها و صبر بر خوشایندها", "interpretation": "صبر در همه حال لازم است.", "topics": ["صبر", "تحمل"]},
 ]
 
 DEFAULT_SAHIFEH_SEED = [
     {"index": 1, "dua": 1, "title": "در ستایش پروردگار", "text": "الْحَمْدُ لِلَّهِ الْأَوَّلِ بلا أَوَّلٍ كَانَ قَبْلَهُ", "trans": "ستایش خدای را که نخستین است", "interpretation": "خداوند آغاز همه چیز است.", "topics": ["ستایش", "خدا", "آغاز"]},
+    {"index": 2, "dua": 2, "title": "دعا برای طلب رحمت", "text": "إِلَٰهِى أَنْتَ الَّذِى وَسِعْتَ كُلَّ شَىْءٍ رَحْمَةً وَعِلْمًا", "trans": "خدایا تو کسی هستی که رحمت و علمت همه چیز را فراگرفته", "interpretation": "رحمت خداوند گسترده است.", "topics": ["رحمت", "علم"]},
+    {"index": 3, "dua": 3, "title": "دعا برای طلب مغفرت", "text": "اللَّهُمَّ اغْفِرْ لَنَا ذُنُوبَنَا وَإِسْرَافَنَا فِي أَمْرِنَا", "trans": "خدایا گناهان و زیاده‌روی‌های ما را ببخش", "interpretation": "طلب مغفرت از خداوند.", "topics": ["مغفرت", "بخشش"]},
+    {"index": 4, "dua": 4, "title": "دعا برای روزی و برکت", "text": "اللَّهُمَّ ارْزُقْنَا رِزْقًا حَلَالًا طَيِّبًا", "trans": "خدایا روزی حلال و پاک به ما عطا کن", "interpretation": "طلب روزی حلال.", "topics": ["روزی", "حلال"]},
+    {"index": 5, "dua": 5, "title": "دعا برای توفیق در عبادت", "text": "اللَّهُمَّ أَعِنَّا عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ", "trans": "خدایا ما را بر یاد و شکر و عبادت خود یاری ده", "interpretation": "طلب توفیق عبادت.", "topics": ["عبادت", "یاد خدا"]},
+    {"index": 6, "dua": 6, "title": "دعا برای سلامتی", "text": "اللَّهُمَّ عَافِنَا فِي أَبْدَانِنَا وَأَجْسَادِنَا", "trans": "خدایا به بدن‌ها و جسم‌های ما عافیت عطا کن", "interpretation": "طلب سلامتی و عافیت.", "topics": ["سلامتی", "عافیت"]},
+    {"index": 7, "dua": 7, "title": "دعا برای اهل ایمان", "text": "اللَّهُمَّ اغْفِرْ لِلْمُؤْمِنِينَ وَالْمُؤْمِنَاتِ", "trans": "خدایا مردان و زنان مؤمن را بیامرز", "interpretation": "طلب مغفرت برای مؤمنان.", "topics": ["مغفرت", "ایمان"]},
 ]
 
 # =========================================================
@@ -542,7 +568,7 @@ def load_library():
         with open(MAHDI_FILE, "r", encoding="utf-8") as f:
             MAHDI_MESSAGES = json.load(f)
             
-        logger.info(f"📚 کتابخانه بارگذاری شد: قرآن={len(QURAN_DATA)}, موضوعات={len(TOPICS_DATA)}")
+        logger.info(f"📚 کتابخانه بارگذاری شد: قرآن={len(QURAN_DATA)}, نهج‌البلاغه={len(NAHJ_DATA)}, صحیفه={len(SAHIFEH_DATA)}")
         
         if not QURAN_DATA:
             QURAN_DATA = DEFAULT_QURAN_SEED
@@ -662,7 +688,7 @@ def get_survey_results(survey_id):
     return {"question": survey["question"], "total_votes": total_votes, "results": results, "active": survey["active"]}
 
 # =========================================================
-# ۱۳. سیستم ذخیره آیات مورد علاقه
+# ۱۳. سیستم ذخیره آیات مورد علاقه (بهبود یافته)
 # =========================================================
 def add_favorite(user_id, verse_data):
     user_id = str(user_id)
@@ -670,10 +696,20 @@ def add_favorite(user_id, verse_data):
         FAVORITES_DATA[user_id] = []
     for item in FAVORITES_DATA[user_id]:
         if item.get("index") == verse_data.get("index"):
-            return False, "این آیه قبلاً ذخیره شده است."
-    FAVORITES_DATA[user_id].append(verse_data)
+            return False, "📌 این آیه قبلاً در علاقه‌مندی‌های شما ذخیره شده است! ❤️"
+    verse_info = {
+        "index": verse_data.get("index"),
+        "surah": verse_data.get("surah", "نامشخص"),
+        "verse": verse_data.get("verse", "نامشخص"),
+        "text": verse_data.get("text", ""),
+        "trans": verse_data.get("trans", ""),
+        "interpretation": verse_data.get("interpretation", ""),
+        "topics": verse_data.get("topics", []),
+        "saved_at": datetime.now().isoformat()
+    }
+    FAVORITES_DATA[user_id].append(verse_info)
     save_library_file(FAVORITES_FILE, FAVORITES_DATA)
-    return True, "آیه با موفقیت به علاقه‌مندی‌ها اضافه شد. ❤️"
+    return True, "✅ آیه با موفقیت به علاقه‌مندی‌های شما اضافه شد! ❤️\n\n📖 می‌توانید از طریق دکمه «آیات مورد علاقه» در منوی اصلی به آن دسترسی داشته باشید."
 
 def get_favorites(user_id):
     user_id = str(user_id)
@@ -682,13 +718,35 @@ def get_favorites(user_id):
 def remove_favorite(user_id, index):
     user_id = str(user_id)
     if user_id not in FAVORITES_DATA:
-        return False, "هیچ آیۀ ذخیره‌ای ندارید."
+        return False, "هیچ آیه‌ای در علاقه‌مندی‌های شما وجود ندارد."
     original_len = len(FAVORITES_DATA[user_id])
     FAVORITES_DATA[user_id] = [item for item in FAVORITES_DATA[user_id] if item.get("index") != index]
     if len(FAVORITES_DATA[user_id]) == original_len:
         return False, "این آیه در علاقه‌مندی‌های شما وجود ندارد."
     save_library_file(FAVORITES_FILE, FAVORITES_DATA)
-    return True, "آیه با موفقیت حذف شد. 💔"
+    return True, "🗑️ آیه با موفقیت از علاقه‌مندی‌های شما حذف شد."
+
+def format_favorites_message(favorites, lang="fa"):
+    """فرمت‌سازی زیبای لیست آیات مورد علاقه"""
+    if not favorites:
+        return "❤️ شما هنوز هیچ آیه‌ای ذخیره نکرده‌اید.\n\n💡 برای ذخیره آیه، پس از جستجوی هوشمند، روی دکمه «ذخیره این آیه» کلیک کنید."
+    
+    msg = "❤️ <b>آیات مورد علاقه شما</b>\n\n"
+    msg += "═" * 30 + "\n\n"
+    
+    for i, fav in enumerate(favorites, 1):
+        msg += f"📖 {i}. <b>{fav.get('surah', '')} (آیه {fav.get('verse', '')})</b>\n"
+        msg += f"   {fav.get('text', '')[:60]}...\n"
+        msg += f"   ✨ {fav.get('trans', '')[:40]}...\n"
+        if fav.get('topics'):
+            msg += f"   🏷️ {', '.join(fav.get('topics', [])[:3])}\n"
+        msg += f"   📅 ذخیره شده: {fav.get('saved_at', '').split('T')[0] if fav.get('saved_at') else 'نامشخص'}\n"
+        msg += "\n"
+    
+    msg += "═" * 30 + "\n"
+    msg += f"📊 مجموع: {len(favorites)} آیه ذخیره شده"
+    
+    return msg
 
 # =========================================================
 # ۱۴. توابع تاریخ شمسی
@@ -799,7 +857,7 @@ def internet_search(query, lang="fa"):
     return results
 
 # =========================================================
-# ۱۶. موتور جستجوی هوشمند یکپارچه
+# ۱۶. موتور جستجوی هوشمند یکپارچه (بهبود یافته)
 # =========================================================
 def expand_topic(query):
     query_lower = query.lower()
@@ -885,13 +943,17 @@ Please provide a complete, warm, and insightful answer that combines these sourc
     return results
 
 def format_smart_results(results, query, lang="fa"):
+    """فرمت‌سازی نتایج جستجوی هوشمند با طراحی زیبا"""
     if not results:
-        return f"🔍 نتیجه‌ای برای «{query}» یافت نشد."
+        return f"🔍 نتیجه‌ای برای «{query}» یافت نشد.\n\n💡 پیشنهاد: از کلمات کلیدی ساده‌تر استفاده کنید یا از بخش «هوش مصنوعی» سوال خود را بپرسید."
+    
     output = f"🧠 <b>موتور جستجوی هوشمند - «{query}»</b>\n{'='*50}\n\n"
+    
     if results.get("ai_response"):
         output += "🤖 <b>تحلیل هوش مصنوعی:</b>\n"
         output += f"{results['ai_response']}\n\n"
         output += "─" * 40 + "\n\n"
+    
     if results.get("quran"):
         output += "📖 <b>آیات مرتبط در قرآن:</b>\n\n"
         for i, item in enumerate(results["quran"][:5], 1):
@@ -899,8 +961,9 @@ def format_smart_results(results, query, lang="fa"):
             output += f"   {item['text']}\n"
             output += f"   ✨ {item['trans']}\n"
             if item.get('interpretation'):
-                output += f"   💡 {item['interpretation']}\n"
+                output += f"   💡 {item['interpretation'][:80]}...\n"
             output += "\n"
+    
     if results.get("nahj"):
         output += "📜 <b>فرازهایی از نهج‌البلاغه:</b>\n\n"
         for i, item in enumerate(results["nahj"][:3], 1):
@@ -908,8 +971,9 @@ def format_smart_results(results, query, lang="fa"):
             output += f"   {item['text']}\n"
             output += f"   ✨ {item['trans']}\n"
             if item.get('interpretation'):
-                output += f"   💡 {item['interpretation']}\n"
+                output += f"   💡 {item['interpretation'][:80]}...\n"
             output += "\n"
+    
     if results.get("sahifeh"):
         output += "🤲 <b>دعاهایی از صحیفه سجادیه:</b>\n\n"
         for i, item in enumerate(results["sahifeh"][:3], 1):
@@ -917,8 +981,9 @@ def format_smart_results(results, query, lang="fa"):
             output += f"   {item['text']}\n"
             output += f"   ✨ {item['trans']}\n"
             if item.get('interpretation'):
-                output += f"   💡 {item['interpretation']}\n"
+                output += f"   💡 {item['interpretation'][:80]}...\n"
             output += "\n"
+    
     if results.get("hadith"):
         output += "🕊️ <b>احادیث مرتبط:</b>\n\n"
         for i, item in enumerate(results["hadith"][:3], 1):
@@ -931,6 +996,7 @@ def format_smart_results(results, query, lang="fa"):
                 output += f"   📚 {item['source2']}\n"
             output += f"   🔹 ذکر: {item['dhikr']}\n"
             output += f"   🏷️ دسته: {item['category']}\n\n"
+    
     if results.get("articles"):
         output += "📚 <b>مقالات و منابع مرتبط:</b>\n\n"
         for i, item in enumerate(results["articles"][:5], 1):
@@ -942,7 +1008,10 @@ def format_smart_results(results, query, lang="fa"):
             if item.get('source'):
                 output += f"   📌 منبع: {item['source']}\n"
             output += "\n"
+    
+    output += "─" * 40 + "\n"
     output += "💡 برای سوالات بیشتر، از بخش «هوش مصنوعی» استفاده کنید."
+    
     return output
 
 # =========================================================
@@ -1100,7 +1169,6 @@ def check_achievements(chat_id, action, user_data):
     if action == "smart_search":
         achievements.append("knowledge_seeker")
     
-    # دستاوردهای مهدویت
     if action.startswith("mahdi_"):
         achievements.append(action)
     
@@ -1236,66 +1304,15 @@ def schedule_best_users():
             time.sleep(60)
 
 # =========================================================
-# ۲۱. سیستم ارسال روزانه
+# ۲۱. سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه + نهج‌البلاغه)
 # =========================================================
-def send_daily_posts():
-    try:
-        if not FEATURES["daily_posts"]:
-            return
-        now = datetime.now()
-        scheduled_times = [(8, 0, "صبح 🌅"), (12, 0, "ظهر ☀️"), (18, 0, "عصر 🌇")]
-        for hour, minute, time_name in scheduled_times:
-            if now.hour == hour and 0 <= now.minute <= 2:
-                if now.minute != 0:
-                    time.sleep(1)
-                    continue
-                q_item, q_idx = next_item("quran", QURAN_DATA)
-                q_msg = ""
-                if q_item:
-                    interpretation = q_item.get('interpretation', '')
-                    topics = ', '.join(q_item.get('topics', ['عمومی']))
-                    q_msg = f"""📘 <b>آیه منتخب روز</b>\nسوره {q_item['surah']} - آیه {q_item['verse']}\n{q_item['text']}\n🔹 ترجمه:\n{q_item['trans']}\n💡 <b>تفسیر:</b> {interpretation}\n🏷️ <b>موضوعات:</b> {topics}"""
-                    send_message(CHANNEL_ID, q_msg)
-                    set_publish_index("quran", q_idx)
-                    save_sent_message("daily_quran", q_msg, CHANNEL_ID)
-                    time.sleep(2)
-                hadith_item = random.choice(HADITHS_WITH_DHIKR)
-                hadith_msg = f"""🕊️ <b>حدیث روز</b>\n{hadith_item['hadith']}\n📝 متن عربی:\n{hadith_item['arabic']}\n📚 <b>منابع:</b>\n• {hadith_item['source']}\n• {hadith_item['source2']}\n🔹 <b>ذکر روزانه:</b>\n{hadith_item['dhikr']}\n🏷️ دسته: {hadith_item['category']}\n💚 با یاد خدا دل‌ها آرام می‌گیرد."""
-                send_message(CHANNEL_ID, hadith_msg)
-                save_sent_message("daily_hadith", hadith_msg, CHANNEL_ID)
-                time.sleep(2)
-                try:
-                    conn = db_conn()
-                    cur = conn.cursor()
-                    cur.execute("SELECT chat_id, name, lang FROM users WHERE receive_daily = 1")
-                    users = cur.fetchall()
-                    conn.close()
-                    sent_count = 0
-                    for user in users:
-                        try:
-                            user_lang = user[2] if user[2] in ["fa", "en", "ar"] else "fa"
-                            greeting = safe_text(user_lang, "daily_greeting", default="🌸 پیام روزانه")
-                            daily_msg = f"""🌟 <b>{greeting} کانون قرآن و عترت</b>\n{q_msg if q_msg else '📖 با قرآن زندگی کن'}\n{hadith_msg}\n🙏 از همراهی شما سپاسگزاریم."""
-                            send_message(user[0], daily_msg)
-                            sent_count += 1
-                            time.sleep(0.2)
-                            if sent_count % 10 == 0:
-                                time.sleep(0.5)
-                        except Exception as e:
-                            logger.error(f"خطا در ارسال به {user[0]}: {e}")
-                    logger.info(f"پیام روزانه به {sent_count} کاربر ارسال شد - {time_name}")
-                except Exception as e:
-                    logger.error(f"خطا در دریافت کاربران: {e}")
-                break
-        time.sleep(10)
-    except Exception as e:
-        logger.error(f"خطا در ارسال روزانه: {e}")
-
-def next_item(book_name, data_list):
+def get_next_item(book_name, data_list):
+    """دریافت آیتم بعدی برای چرخش از ابتدا تا انتها"""
     if not data_list:
         return None, 0
     current_idx, last_date = get_publish_index(book_name)
     today = datetime.now().date().isoformat()
+    # اگر امروز قبلاً ارسال شده، همان را برگردان
     if last_date and today in last_date:
         return None, current_idx
     idx = current_idx
@@ -1304,6 +1321,175 @@ def next_item(book_name, data_list):
     item = data_list[idx]
     new_idx = (idx + 1) % len(data_list)
     return item, new_idx
+
+def format_daily_message(item, book_type, lang="fa"):
+    """فرمت‌سازی پیام روزانه بر اساس نوع کتاب و زبان کاربر"""
+    if book_type == "quran":
+        title = safe_text(lang, "daily_quran_title")
+        text = f"""📘 <b>{title}</b>
+        
+<b>{item['surah']} (آیه {item['verse']})</b>
+📝 {item['text']}
+
+✨ <b>ترجمه:</b>
+{item['trans']}
+
+💡 <b>تفسیر:</b>
+{item.get('interpretation', 'تفسیر ثبت نشده')}
+
+🏷️ <b>موضوعات:</b>
+{', '.join(item.get('topics', ['عمومی']))}
+"""
+        # اضافه کردن نسخه انگلیسی برای کاربران غیرفارسی
+        if lang != "fa":
+            en_text = f"""
+━━━━━━━━━━━━━━━━━━━
+📖 <b>English Translation:</b>
+{item.get('trans', '')}
+"""
+            text += en_text
+        return text
+    
+    elif book_type == "sahifeh":
+        title = safe_text(lang, "daily_sahifeh_title")
+        text = f"""🤲 <b>{title}</b>
+
+<b>{item['title']} (دعای {item['dua']})</b>
+📝 {item['text']}
+
+✨ <b>ترجمه:</b>
+{item['trans']}
+
+💡 <b>تفسیر:</b>
+{item.get('interpretation', 'تفسیر ثبت نشده')}
+
+🏷️ <b>موضوعات:</b>
+{', '.join(item.get('topics', ['عمومی']))}
+"""
+        if lang != "fa":
+            en_text = f"""
+━━━━━━━━━━━━━━━━━━━
+📖 <b>English Translation:</b>
+{item.get('trans', '')}
+"""
+            text += en_text
+        return text
+    
+    elif book_type == "nahj":
+        title = safe_text(lang, "daily_nahj_title")
+        text = f"""📜 <b>{title}</b>
+
+<b>{item['type']} {item['number']}</b>
+📝 {item['text']}
+
+✨ <b>ترجمه:</b>
+{item['trans']}
+
+💡 <b>تفسیر:</b>
+{item.get('interpretation', 'تفسیر ثبت نشده')}
+
+🏷️ <b>موضوعات:</b>
+{', '.join(item.get('topics', ['عمومی']))}
+"""
+        if lang != "fa":
+            en_text = f"""
+━━━━━━━━━━━━━━━━━━━
+📖 <b>English Translation:</b>
+{item.get('trans', '')}
+"""
+            text += en_text
+        return text
+    
+    return "⚠️ خطا در فرمت‌سازی پیام."
+
+def send_daily_posts():
+    """ارسال سه پیام روزانه به کانال: قرآن، صحیفه، نهج‌البلاغه"""
+    try:
+        if not FEATURES["daily_posts"]:
+            return
+        now = datetime.now()
+        # زمان‌های ارسال: صبح ۸، ظهر ۱۲، عصر ۱۸
+        scheduled_times = [(8, 0, "صبح 🌅"), (12, 0, "ظهر ☀️"), (18, 0, "عصر 🌇")]
+        
+        for hour, minute, time_name in scheduled_times:
+            if now.hour == hour and 0 <= now.minute <= 2:
+                if now.minute != 0:
+                    time.sleep(1)
+                    continue
+                
+                # تعیین نوع کتاب بر اساس زمان
+                if hour == 8:  # صبح - قرآن
+                    book_type = "quran"
+                    data_list = QURAN_DATA
+                    book_name = "quran"
+                    title_key = "daily_quran_title"
+                elif hour == 12:  # ظهر - صحیفه سجادیه
+                    book_type = "sahifeh"
+                    data_list = SAHIFEH_DATA
+                    book_name = "sahifeh"
+                    title_key = "daily_sahifeh_title"
+                else:  # عصر - نهج‌البلاغه
+                    book_type = "nahj"
+                    data_list = NAHJ_DATA
+                    book_name = "nahj"
+                    title_key = "daily_nahj_title"
+                
+                # دریافت آیتم بعدی
+                item, new_idx = get_next_item(book_name, data_list)
+                if not item:
+                    logger.warning(f"⚠️ داده‌ای برای {book_name} یافت نشد.")
+                    break
+                
+                # فرمت‌سازی پیام به زبان فارسی (زبان اصلی کانال)
+                msg = format_daily_message(item, book_type, "fa")
+                
+                # اضافه کردن هدر روز
+                persian_date = get_persian_date()
+                msg = f"🌟 <b>کانون قرآن و عترت</b>\n📅 {persian_date}\n\n{msg}"
+                
+                # ارسال به کانال
+                send_message(CHANNEL_ID, msg)
+                set_publish_index(book_name, new_idx)
+                save_sent_message(f"daily_{book_name}", msg[:500], CHANNEL_ID)
+                logger.info(f"✅ پیام {book_name} در {time_name} ارسال شد. ایندکس جدید: {new_idx}")
+                
+                # ارسال به کاربرانی که دریافت روزانه فعال دارند
+                try:
+                    conn = db_conn()
+                    cur = conn.cursor()
+                    cur.execute("SELECT chat_id, name, lang FROM users WHERE receive_daily = 1")
+                    users = cur.fetchall()
+                    conn.close()
+                    
+                    sent_count = 0
+                    for user in users:
+                        try:
+                            user_lang = user[2] if user[2] in ["fa", "en", "ar"] else "fa"
+                            # برای کاربران انگلیسی زبان، پیام با ترجمه انگلیسی
+                            user_msg = format_daily_message(item, book_type, user_lang)
+                            user_msg = f"🌟 <b>کانون قرآن و عترت</b>\n📅 {get_persian_date() if user_lang == 'fa' else datetime.now().strftime('%Y-%m-%d')}\n\n{user_msg}"
+                            send_message(user[0], user_msg)
+                            sent_count += 1
+                            time.sleep(0.1)
+                            if sent_count % 10 == 0:
+                                time.sleep(0.5)
+                        except Exception as e:
+                            logger.error(f"خطا در ارسال به {user[0]}: {e}")
+                    logger.info(f"📨 پیام {book_name} به {sent_count} کاربر ارسال شد - {time_name}")
+                except Exception as e:
+                    logger.error(f"خطا در دریافت کاربران: {e}")
+                
+                # وقفه برای جلوگیری از ارسال چندباره
+                time.sleep(60)
+                break
+                
+        time.sleep(10)
+    except Exception as e:
+        logger.error(f"خطا در ارسال روزانه: {e}")
+
+def next_item(book_name, data_list):
+    """تابع پشتیبان برای سازگاری با نسخه‌های قبلی"""
+    return get_next_item(book_name, data_list)
 
 # =========================================================
 # ۲۲. گزارش هفتگی
@@ -1327,8 +1513,12 @@ def send_weekly_report():
         feedbacks = cur.fetchone()[0]
         cur.execute("SELECT name, score FROM users ORDER BY score DESC LIMIT 1")
         best_user = cur.fetchone()
+        # آمار کتاب‌ها
+        quran_idx, _ = get_publish_index("quran")
+        sahifeh_idx, _ = get_publish_index("sahifeh")
+        nahj_idx, _ = get_publish_index("nahj")
         conn.close()
-        report = f"""📊 <b>گزارش هفتگی ربات</b>\n{'='*50}\n📅 {get_persian_date()}\n👥 <b>آمار کاربران:</b>\n• کل کاربران: {total_users}\n• کاربران فعال این هفته: {active_users}\n📊 <b>آمار فعالیت:</b>\n• جستجوها: {searches}\n• بازخوردها: {feedbacks}\n🏆 <b>بهترین کاربر هفته:</b>\n• {best_user[0] if best_user else 'نامشخص'} با {best_user[1] if best_user else 0} امتیاز\n💪 به راه خود ادامه دهید! 🚀"""
+        report = f"""📊 <b>گزارش هفتگی ربات</b>\n{'='*50}\n📅 {get_persian_date()}\n👥 <b>آمار کاربران:</b>\n• کل کاربران: {total_users}\n• کاربران فعال این هفته: {active_users}\n📊 <b>آمار فعالیت:</b>\n• جستجوها: {searches}\n• بازخوردها: {feedbacks}\n📚 <b>وضعیت کتاب‌ها:</b>\n• قرآن: {quran_idx}/{len(QURAN_DATA)}\n• صحیفه: {sahifeh_idx}/{len(SAHIFEH_DATA)}\n• نهج‌البلاغه: {nahj_idx}/{len(NAHJ_DATA)}\n🏆 <b>بهترین کاربر هفته:</b>\n• {best_user[0] if best_user else 'نامشخص'} با {best_user[1] if best_user else 0} امتیاز\n💪 به راه خود ادامه دهید! 🚀"""
         send_message(ADMIN_ID, report)
         logger.info("📊 گزارش هفتگی ارسال شد.")
     except Exception as e:
@@ -1893,6 +2083,7 @@ def ask_deepseek(question, lang):
     if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
         return "🔑 کلید API تنظیم نشده است."
     current_time = time.time()
+    chat_id = int(time.time()) % 10000
     if chat_id in RATE_LIMIT_COUNTER:
         if current_time - RATE_LIMIT_TIME.get(chat_id, 0) < 60:
             RATE_LIMIT_COUNTER[chat_id] = RATE_LIMIT_COUNTER.get(chat_id, 0) + 1
@@ -1915,7 +2106,6 @@ def ask_deepseek(question, lang):
     messages.append({"role": "user", "content": question})
     payload = {"model": "deepseek-chat", "messages": messages, "temperature": 0.7, "max_tokens": 1000}
     try:
-        send_chat_action(chat_id, "typing")
         res = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=45)
         if res.status_code == 200:
             data = res.json()
@@ -2007,7 +2197,7 @@ def profile_keyboard(lang):
     ]}
 
 def mahdi_keyboard(lang):
-    """کیبورد مهدویت با ۷ گزینه"""
+    """کیبورد مهدویت با ۷ گزینه و طراحی جذاب"""
     return {"inline_keyboard": [
         [{"text": "🕊️ ۵ صلوات (۳ امتیاز)", "callback_data": "mahdi_salawat_5"}],
         [{"text": "🕊️ ۱۴ صلوات (۵ امتیاز)", "callback_data": "mahdi_salawat_14"}],
@@ -2534,25 +2724,40 @@ def webhook_token():
                 return "OK", 200
             
             # ===========================
-            # بخش مهدویت
+            # بخش مهدویت (جذاب‌تر شده)
             # ===========================
             if cb_data == "menu_mahdi":
                 if not FEATURES["mahdi_section"]:
                     send_message(chat_id, "🔧 این بخش غیرفعال است.", main_menu(chat_id, lang))
                     return "OK", 200
-                msg = """🕊️ <b>بخش مهدویت</b>
+                try:
+                    conn = db_conn()
+                    cur = conn.cursor()
+                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ? AND completed_at > datetime('now', '-1 day')", (chat_id,))
+                    today_count = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ?", (chat_id,))
+                    total_count = cur.fetchone()[0]
+                    conn.close()
+                except:
+                    today_count = 0
+                    total_count = 0
+                
+                msg = f"""🕊️ <b>بخش مهدویت</b>
+🌟 {first_name} جان! امروز برای امام زمان (عج) چه می‌کنی؟
 
-🌟 امروز برای امام زمان (عج) چه می‌کنی؟
+📊 آمار امروز شما:
+• اقدامات امروز: {today_count} مورد
+• کل اقدامات: {total_count} مورد
 
 💡 با انجام هر یک از این کارها، علاوه بر امتیاز، به ظهور نزدیک‌تر می‌شوی:
 
-• ۵ صلوات (۳ امتیاز)
-• ۱۴ صلوات (۵ امتیاز)  
-• ۷۲ صلوات (۱۰ امتیاز)
-• هدیه به امام زمان (۳ امتیاز)
-• کمک به دیگران (۵ امتیاز)
-• دعا برای ظهور (۳ امتیاز)
-• تفکر درباره ظهور (۲ امتیاز)
+• ۵ صلوات (۳ امتیاز) 🌹
+• ۱۴ صلوات (۵ امتیاز) 🌹
+• ۷۲ صلوات (۱۰ امتیاز) 🌹
+• هدیه به امام زمان (۳ امتیاز) 🎁
+• کمک به دیگران (۵ امتیاز) 🤝
+• دعا برای ظهور (۳ امتیاز) 🤲
+• تفکر درباره ظهور (۲ امتیاز) 💭
 
 🌹 هر روز می‌توانی این کارها را انجام دهی.
 🕊️ امام زمان (عج) منتظر اعمال خوب توست!"""
@@ -2560,11 +2765,10 @@ def webhook_token():
                 return "OK", 200
             
             # ===========================
-            # اقدامات مهدویت
+            # اقدامات مهدویت (با پیام‌های جذاب‌تر)
             # ===========================
             if cb_data.startswith("mahdi_"):
                 action_id = cb_data
-                # پیدا کردن اطلاعات اقدام
                 action_info = None
                 for item in MAHDI_MESSAGES_DATA:
                     if item["id"] == action_id:
@@ -2572,7 +2776,6 @@ def webhook_token():
                         break
                 
                 if action_info:
-                    # بررسی اینکه کاربر قبلاً این اقدام را امروز انجام داده
                     try:
                         conn = db_conn()
                         cur = conn.cursor()
@@ -2585,10 +2788,14 @@ def webhook_token():
                         
                         if existing:
                             conn.close()
-                            send_message(chat_id, f"🌸 امروز قبلاً «{action_info['title']}» را انجام داده‌ای!\n🌟 هر روز یک بار می‌توانی این کار را انجام دهی.", mahdi_keyboard(lang))
+                            repeat_messages = [
+                                "🌸 امروز قبلاً این کار را انجام داده‌ای!\n🌟 فردا دوباره امتحان کن!",
+                                "🌹 امروز روح امام زمان (عج) از کارت خوشحال شد!\n💚 فردا هم منتظر اعمال خوب توست!",
+                                "🕊️ امروز نور دیگری به دل امام زمان (عج) فرستادی!\n🌟 فردا دوباره بیا!"
+                            ]
+                            send_message(chat_id, f"✨ {random.choice(repeat_messages)}\n\n🕊️ {action_info['title']}", mahdi_keyboard(lang))
                             return "OK", 200
                         
-                        # ثبت اقدام
                         cur.execute("""
                             INSERT INTO mahdi_actions (user_id, action_id, completed_at)
                             VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -2596,16 +2803,23 @@ def webhook_token():
                         conn.commit()
                         conn.close()
                         
-                        # اعطای امتیاز
                         points = action_info["points"]
                         update_user(chat_id, score=points)
                         update_user_score(chat_id, action_id, user)
                         
-                        # ارسال پیام تبریک
+                        congrat_messages = [
+                            f"🌹 {points} نور به قلب امام زمان (عج) فرستادی!",
+                            f"✨ با این کار، {points} قدم به ظهور نزدیک‌تر شدی!",
+                            f"🕊️ امروز {points} نوری بر دل امام زمان (عج) تاباندی!",
+                            f"💚 {points} امتیاز برای نزدیکی به ظهور!",
+                            f"🌟 {points} درجه در بهشت رضوان! 🌹"
+                        ]
+                        
                         msg = f"""🕊️ <b>{action_info['title']}</b>
+
 {action_info['message']}
 
-🌟 {points} امتیاز دریافت کردی!
+🌟 {random.choice(congrat_messages)}
 💚 هر روز می‌توانی این کار را تکرار کنی.
 🕌 به یاد امام زمان (عج) باش!"""
                         send_message(chat_id, msg, mahdi_keyboard(lang))
@@ -2807,20 +3021,21 @@ https://ble.ir/{bot_username}"""
                 return "OK", 200
             
             # ===========================
-            # آیات مورد علاقه
+            # آیات مورد علاقه (بهبود یافته)
             # ===========================
             if cb_data == "menu_favorites":
                 favorites = get_favorites(chat_id)
                 if favorites:
-                    msg = "❤️ <b>آیات مورد علاقه شما</b>\n\n"
-                    for i, fav in enumerate(favorites[:10], 1):
-                        msg += f"{i}. {fav.get('surah', '')} - آیه {fav.get('verse', '')}\n"
-                        msg += f"   {fav.get('text', '')[:50]}...\n\n"
-                    if len(favorites) > 10:
-                        msg += f"\n📌 {len(favorites)-10} آیه دیگر ذخیره شده است."
-                    send_message(chat_id, msg, favorites_keyboard(lang, chat_id))
+                    msg = format_favorites_message(favorites, lang)
+                    keyboard = []
+                    for i, fav in enumerate(favorites[:5]):
+                        keyboard.append([{"text": f"🗑️ حذف {fav.get('surah', '')} - {fav.get('verse', '')}", "callback_data": f"remove_fav_{fav.get('index', i)}"}])
+                    keyboard.append([{"text": "🗑️ حذف همه", "callback_data": "clear_favorites"}])
+                    keyboard.append([{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}])
+                    send_message(chat_id, msg, {"inline_keyboard": keyboard})
                 else:
-                    send_message(chat_id, "❤️ هنوز هیچ آیه‌ای ذخیره نکرده‌اید.", main_menu(chat_id, lang))
+                    msg = "❤️ هنوز هیچ آیه‌ای ذخیره نکرده‌اید.\n\n💡 برای ذخیره آیه، پس از جستجوی هوشمند، روی دکمه «ذخیره این آیه» کلیک کنید."
+                    send_message(chat_id, msg, main_menu(chat_id, lang))
                 return "OK", 200
             
             if cb_data.startswith("show_fav_"):
@@ -2832,15 +3047,35 @@ https://ble.ir/{bot_username}"""
 {fav.get('text', '')}
 ✨ {fav.get('trans', '')}
 💡 <b>تفسیر:</b> {fav.get('interpretation', '')}
-🏷️ <b>موضوعات:</b> {', '.join(fav.get('topics', ['عمومی']))}"""
-                    send_message(chat_id, msg, favorites_keyboard(lang, chat_id))
+🏷️ <b>موضوعات:</b> {', '.join(fav.get('topics', ['عمومی']))}
+📅 ذخیره شده: {fav.get('saved_at', '').split('T')[0] if fav.get('saved_at') else 'نامشخص'}"""
+                    fav_keyboard = {
+                        "inline_keyboard": [
+                            [{"text": "🗑️ حذف این آیه", "callback_data": f"remove_fav_{fav.get('index', 0)}"}],
+                            [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
+                        ]
+                    }
+                    send_message(chat_id, msg, fav_keyboard)
                 else:
                     send_message(chat_id, "⚠️ آیه مورد نظر یافت نشد.", favorites_keyboard(lang, chat_id))
                 return "OK", 200
             
+            if cb_data.startswith("remove_fav_"):
+                index_str = cb_data.replace("remove_fav_", "")
+                try:
+                    index = int(index_str)
+                except:
+                    index = 0
+                success, message = remove_favorite(chat_id, index)
+                if success:
+                    send_message(chat_id, message, main_menu(chat_id, lang))
+                else:
+                    send_message(chat_id, message, favorites_keyboard(lang, chat_id))
+                return "OK", 200
+            
             if cb_data == "clear_favorites":
-                if chat_id in FAVORITES_DATA:
-                    FAVORITES_DATA[chat_id] = []
+                if str(chat_id) in FAVORITES_DATA:
+                    FAVORITES_DATA[str(chat_id)] = []
                     save_library_file(FAVORITES_FILE, FAVORITES_DATA)
                     send_message(chat_id, "🗑️ تمام آیات مورد علاقه شما حذف شد.", main_menu(chat_id, lang))
                 else:
@@ -2849,7 +3084,6 @@ https://ble.ir/{bot_username}"""
             
             if cb_data.startswith("save_ayah_"):
                 index = int(cb_data.replace("save_ayah_", ""))
-                # پیدا کردن آیه در نتایج جستجوی اخیر
                 ayah_data = None
                 for item in QURAN_DATA:
                     if item.get("index") == index:
@@ -2857,7 +3091,11 @@ https://ble.ir/{bot_username}"""
                         break
                 if ayah_data:
                     success, message = add_favorite(chat_id, ayah_data)
-                    send_message(chat_id, message, main_menu(chat_id, lang))
+                    if success:
+                        update_user(chat_id, score=1)
+                        send_message(chat_id, f"{message}\n\n🌟 ۱ امتیاز اضافی برای ذخیره آیه!", main_menu(chat_id, lang))
+                    else:
+                        send_message(chat_id, message, main_menu(chat_id, lang))
                 else:
                     send_message(chat_id, "⚠️ آیه مورد نظر یافت نشد.", main_menu(chat_id, lang))
                 return "OK", 200
@@ -3056,7 +3294,7 @@ https://ble.ir/{bot_username}"""
                     send_message(chat_id, "⛔ دسترسی غیرمجاز.")
                     return "OK", 200
                 schedule_status = "فعال ✅" if FEATURES["daily_posts"] else "غیرفعال ❌"
-                times = "🕐 ۸:۰۰ صبح\n🕐 ۱۲:۰۰ ظهر\n🕐 ۱۸:۰۰ عصر"
+                times = "🕐 ۸:۰۰ صبح (قرآن)\n🕐 ۱۲:۰۰ ظهر (صحیفه سجادیه)\n🕐 ۱۸:۰۰ عصر (نهج‌البلاغه)"
                 send_message(chat_id, f"""⏰ <b>تنظیمات زمان‌بندی</b>
 وضعیت: {schedule_status}
 زمان‌های ارسال:
@@ -3255,15 +3493,15 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
     
-    # وضعیت جستجوی هوشمند
+    # وضعیت جستجوی هوشمند (اصلاح شده برای نمایش بهتر)
     if state == "waiting_quran_search":
         send_chat_action(chat_id, "typing")
         try:
             results = smart_search(text, lang)
-            if results:
+            if results and (results.get("quran") or results.get("nahj") or results.get("sahifeh") or results.get("hadith") or results.get("ai_response")):
                 formatted_result = format_smart_results(results, text, lang)
                 send_message(chat_id, formatted_result, main_menu(chat_id, lang))
-                update_user(chat_id, state="none", score=3)
+                update_user(chat_id, state="none", score=3, search_count=1)
                 update_user_score(chat_id, "smart_search", user)
                 if results.get("quran"):
                     first_ayah = results["quran"][0]
@@ -3412,13 +3650,16 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "17.0",
+        "version": "19.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "total_users": get_user_count(),
         "features": FEATURES,
         "port": PORT,
-        "jdatetime_installed": HAS_JDATETIME
+        "jdatetime_installed": HAS_JDATETIME,
+        "quran_count": len(QURAN_DATA),
+        "nahj_count": len(NAHJ_DATA),
+        "sahifeh_count": len(SAHIFEH_DATA)
     }), 200
 
 @app.route("/webhook", methods=["GET", "HEAD"])
@@ -3491,6 +3732,11 @@ def startup():
         logger.info(f"🌐 سرور روی پورت {PORT} در حال اجراست...")
         logger.info(f"🌍 زبان‌های پشتیبانی: فارسی, English, العربية")
         logger.info(f"🕊️ بخش مهدویت: {'فعال' if FEATURES['mahdi_section'] else 'غیرفعال'}")
+        logger.info(f"❤️ سیستم ذخیره آیات: {'فعال' if FEATURES['favorites'] else 'غیرفعال'}")
+        logger.info(f"📚 سیستم ارسال سه‌گانه: قرآن + صحیفه + نهج‌البلاغه")
+        logger.info(f"📖 تعداد آیات قرآن: {len(QURAN_DATA)}")
+        logger.info(f"📜 تعداد فرازهای نهج‌البلاغه: {len(NAHJ_DATA)}")
+        logger.info(f"🤲 تعداد دعاهای صحیفه: {len(SAHIFEH_DATA)}")
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
 
