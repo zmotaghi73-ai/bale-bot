@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۲.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۳.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی پیشرفته
 """
@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from functools import wraps
 import traceback
+from thefuzz import fuzz
 
 # =========================================================
 # تنظیمات لاگ‌گیری پیشرفته (قبل از هر چیز)
@@ -77,6 +78,9 @@ SAHIFEH_DATA = []
 ARTICLE_CACHE = {}
 TOPICS_DATA = {}
 USER_SESSIONS = {}
+SEARCH_CACHE = {}
+RATE_LIMIT_COUNTER = {}
+RATE_LIMIT_TIME = {}
 
 # =========================================================
 # ۲. Feature Flags (کنترل ویژگی‌ها با تنظیمات پویا)
@@ -103,7 +107,6 @@ FEATURES = {
     "best_user_weekly": True,
     "referral_system": True,
     "arabic_language": True,
-    "semantic_search": True,
     "islamic_knowledge_engine": True
 }
 
@@ -159,13 +162,13 @@ DEFAULT_TOPICS = {
 # ۵. احادیث و ذکر روزانه (بدون تفسیر)
 # =========================================================
 HADITHS_WITH_DHIKR = [
-    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش"},
-    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)", "category": "تفکر"},
-    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)", "category": "تلاوت"},
-    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)", "category": "نورانی‌سازی"},
-    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)", "category": "تلاوت"},
-    {"hadith": "مؤمنان در محبت و مهربانی مانند یک پیکرند. 💚", "dhikr": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ (۱۰۰ بار)", "category": "اخوت"},
-    {"hadith": "نیکی را به نیکی پاداش نیست، بلکه به احسان است. 🌟", "dhikr": "سُبْحَانَ اللَّهِ الْعَظِیمِ (۱۰۰ بار)", "category": "اخلاق"},
+    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش", "topics": ["آموزش", "علم", "یادگیری"]},
+    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)", "category": "تفکر", "topics": ["تفکر", "آرامش", "قرآن"]},
+    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)", "category": "تلاوت", "topics": ["تلاوت", "قرآن", "یاد خدا"]},
+    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)", "category": "نورانی‌سازی", "topics": ["نور", "قرآن", "آرامش"]},
+    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)", "category": "تلاوت", "topics": ["اجر", "شهادت", "قرآن"]},
+    {"hadith": "مؤمنان در محبت و مهربانی مانند یک پیکرند. 💚", "dhikr": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ (۱۰۰ بار)", "category": "اخوت", "topics": ["مهربانی", "اخوت", "همدلی"]},
+    {"hadith": "نیکی را به نیکی پاداش نیست، بلکه به احسان است. 🌟", "dhikr": "سُبْحَانَ اللَّهِ الْعَظِیمِ (۱۰۰ بار)", "category": "اخلاق", "topics": ["نیکی", "احسان", "پاداش"]},
 ]
 
 INSTANT_QURAN_FULL = [
@@ -705,7 +708,7 @@ def set_publish_index(book_name, index_value):
         logger.error(f"خطا در تنظیم وضعیت انتشار {book_name}: {e}")
 
 def get_leaderboard(limit=10):
-    """دریافت لیگ قرآنی با کاربران واقعی"""
+    """دریافت لیگ قرآنی با کاربران واقعی (بدون داده ساختگی)"""
     try:
         conn = db_conn()
         cur = conn.cursor()
@@ -718,11 +721,6 @@ def get_leaderboard(limit=10):
         """, (limit,))
         users = cur.fetchall()
         conn.close()
-        
-        # اگر کاربری وجود نداشت، لیست خالی برگردان
-        if not users:
-            return []
-        
         return users
     except Exception as e:
         logger.error(f"خطا در دریافت لیگ قرآنی: {e}")
@@ -1025,12 +1023,12 @@ LANGS = {
         "admin_msg_sent": "✅ پیامت با عشق برای ادمین ارسال شد. 🙏",
         "under_construction": "🚧 این بخش در حال زیباتر شدن است. به‌زودی می‌آید.",
         "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
-        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجوی هوشمند قرآن با ترجمه و تفسیر 📖\n• موتور دانش اسلامی (Islamic Knowledge Engine) 🧠\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی از گوگل اسکالر 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n• پشتیبانی از زبان عربی 🇸🇦\n• جستجوی معنایی (Semantic Search) 🔍\n\n💚 همراه همیشگی تو در مسیر نور",
+        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجوی هوشمند اسلامی با ترجمه و تفسیر 🧠\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی از گوگل اسکالر 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n• پشتیبانی از زبان عربی 🇸🇦\n\n💚 همراه همیشگی تو در مسیر نور",
         "daily_enable": "✅ دریافت روزانه فعال شد. هر روز با عشق محتوای جدید می‌فرستم.",
         "daily_disable": "❌ دریافت روزانه غیرفعال شد. هر وقت خواستی فعالش کن.",
         "daily_toggle": "🔔 دریافت روزانه",
         "back_to_menu": "🏠 برگشت به منوی اصلی",
-        "search_quran_prompt": "📖 کلمه یا عبارت قرآنی موردنظرت رو بفرست تا با عشق جستجو کنیم.",
+        "search_quran_prompt": "📖 کلمه یا عبارت مورد نظرت رو بفرست تا با عشق جستجو کنیم.",
         "article_prompt": "📚 موضوع مقاله یا کلیدواژه‌ات رو بفرست.",
         "league_text": "🏆 لیگ قرآنی:\n\n{leaderboard}\n\n💡 برای کسب امتیاز:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝",
         "scorecard_text": "📋 کارنامه و رتبه تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n🎯 رتبه: {rank}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n👑 عنوان: {title}\n✅ کوئست‌ها: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
@@ -1090,12 +1088,12 @@ LANGS = {
         "admin_msg_sent": "✅ Your message was sent to admin.",
         "under_construction": "🚧 This section is under construction.",
         "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
-        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Smart Islamic Search with interpretation 📖\n• Islamic Knowledge Engine 🧠\n• AI Assistant 🤖\n• Scientific Articles from Google Scholar 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝\n• Arabic Language Support 🇸🇦\n• Semantic Search 🔍",
+        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Smart Islamic Search with interpretation 🧠\n• AI Assistant 🤖\n• Scientific Articles from Google Scholar 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝\n• Arabic Language Support 🇸🇦",
         "daily_enable": "✅ Daily receive enabled.",
         "daily_disable": "❌ Daily receive disabled.",
         "daily_toggle": "🔔 Daily Receive",
         "back_to_menu": "🏠 Back to main menu",
-        "search_quran_prompt": "📖 Send a Quranic word or phrase to search.",
+        "search_quran_prompt": "📖 Send a word or phrase to search.",
         "article_prompt": "📚 Send your article topic or keyword.",
         "league_text": "🏆 Quran League:\n\n{leaderboard}\n\n💡 To earn points:\n• Quran Search 📖\n• Send feedback 📝\n• Daily visit 🌅\n• Read Hadith 🕊️\n• Invite friends 🤝",
         "scorecard_text": "📋 Your scorecard and rank:\n\n👤 Name: {name}\n🏆 Score: {score}\n🎯 Rank: {rank}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n👑 Title: {title}\n✅ Quests: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
@@ -1155,12 +1153,12 @@ LANGS = {
         "admin_msg_sent": "✅ تم إرسال رسالتك إلى المشرف.",
         "under_construction": "🚧 هذا القسم قيد الإنشاء.",
         "stats": "📊 إحصائياتك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n📅 تاريخ الانضمام: {join_date}\n👑 اللقب: {title}\n🎯 الزيارات: {visits}\n✅ المهام المنجزة: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
-        "about": "🌸 تم تصميم هذا البوت بحب من قبل مركز القرآن والعترة بجامعة علوم الطب شيراز.\n\n📚 الميزات:\n• البحث الذكي في القرآن مع الترجمة والتفسير 📖\n• محرك المعرفة الإسلامية 🧠\n• المساعد الذكي 🤖\n• المقالات العلمية من جوجل سكولار 📚\n• الحديث والذكر اليومي 🕊️\n• القرآن في لحظة ✨\n• بطاقة النتائج والدوري القرآني 🏆\n• الاستلام اليومي 🔔\n• الاقتراحات والنقد مع النقاط ⭐\n• المهام اليومية 🎯\n• أفضل مستخدمي اليوم والأسبوع 🏅\n• نظام الدعوة والمكافآت 🤝\n• دعم اللغة العربية 🇸🇦\n• البحث الدلالي 🔍",
+        "about": "🌸 تم تصميم هذا البوت بحب من قبل مركز القرآن والعترة بجامعة علوم الطب شيراز.\n\n📚 الميزات:\n• البحث الإسلامي الذكي مع الترجمة والتفسير 🧠\n• المساعد الذكي 🤖\n• المقالات العلمية من جوجل سكولار 📚\n• الحديث والذكر اليومي 🕊️\n• القرآن في لحظة ✨\n• بطاقة النتائج والدوري القرآني 🏆\n• الاستلام اليومي 🔔\n• الاقتراحات والنقد مع النقاط ⭐\n• المهام اليومية 🎯\n• أفضل مستخدمي اليوم والأسبوع 🏅\n• نظام الدعوة والمكافآت 🤝\n• دعم اللغة العربية 🇸🇦",
         "daily_enable": "✅ تم تفعيل الاستلام اليومي.",
         "daily_disable": "❌ تم تعطيل الاستلام اليومي.",
         "daily_toggle": "🔔 الاستلام اليومي",
         "back_to_menu": "🏠 العودة إلى القائمة الرئيسية",
-        "search_quran_prompt": "📖 أرسل كلمة أو عبارة قرآنية للبحث.",
+        "search_quran_prompt": "📖 أرسل كلمة أو عبارة للبحث.",
         "article_prompt": "📚 أرسل موضوع المقال أو الكلمة المفتاحية.",
         "league_text": "🏆 الدوري القرآني:\n\n{leaderboard}\n\n💡 لكسب النقاط:\n• البحث في القرآن 📖\n• إرسال اقتراح 📝\n• الزيارة اليومية 🌅\n• قراءة الحديث 🕊️\n• دعوة الأصدقاء 🤝",
         "scorecard_text": "📋 بطاقة نتائجك وترتيبك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n🎯 الترتيب: {rank}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n👑 اللقب: {title}\n✅ المهام: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
@@ -1229,23 +1227,37 @@ def safe_text(lang_code, key, default=None, **kwargs):
 # ۱۴. موتور جستجوی هوشمند اسلامی (ادغام شده با جستجوی قرآن)
 # =========================================================
 def expand_topic(query):
-    """توسعه موضوع با مترادف‌ها و کلمات کلیدی"""
+    """توسعه موضوع با مترادف‌ها و کلمات کلیدی و تطابق فازی"""
     query_lower = query.lower()
     expanded_terms = [query_lower]
     
-    # بررسی در دیکشنری موضوعات
+    # بررسی در دیکشنری موضوعات با تطابق دقیق
     for topic, data in TOPICS_DATA.items():
         if query_lower in data.get("synonyms", []):
             expanded_terms.extend(data.get("keywords", []))
             expanded_terms.extend(data.get("synonyms", []))
             break
     
+    # تطابق فازی برای کلمات نزدیک
+    for topic, data in TOPICS_DATA.items():
+        for syn in data.get("synonyms", []):
+            if fuzz.ratio(query_lower, syn) > 80:
+                expanded_terms.extend(data.get("keywords", []))
+                expanded_terms.extend(data.get("synonyms", []))
+                break
+    
     return list(set(expanded_terms))
 
 def advanced_search(query):
-    """جستجوی پیشرفته در تمام منابع اسلامی"""
+    """جستجوی پیشرفته در تمام منابع اسلامی با کش"""
     if not FEATURES["islamic_knowledge_engine"]:
         return None
+    
+    # چک کردن کش
+    cache_key = hashlib.md5(query.encode()).hexdigest()
+    if cache_key in SEARCH_CACHE:
+        logger.info(f"جستجو از کش: {query}")
+        return SEARCH_CACHE[cache_key]
     
     expanded_terms = expand_topic(query)
     results = {
@@ -1333,6 +1345,9 @@ def advanced_search(query):
     results["sahifeh"] = results["sahifeh"][:3]
     results["hadith"] = results["hadith"][:3]
     results["articles"] = results["articles"][:3]
+    
+    # ذخیره در کش
+    SEARCH_CACHE[cache_key] = results
     
     return results
 
@@ -1759,10 +1774,10 @@ def get_user_achievements(chat_id):
         return []
 
 # =========================================================
-# ۱۸. سیستم کوئست‌های روزانه
+# ۱۸. سیستم کوئست‌های روزانه (بدون همپوشانی)
 # =========================================================
 def complete_quest(chat_id, quest_id, user_data):
-    """انجام کوئست و دریافت امتیاز"""
+    """انجام کوئست و دریافت امتیاز (بدون همپوشانی با update_user_score)"""
     try:
         # بررسی آیا کوئست قبلاً انجام شده
         conn = db_conn()
@@ -1786,7 +1801,7 @@ def complete_quest(chat_id, quest_id, user_data):
         conn.commit()
         conn.close()
         
-        # اعمال امتیاز
+        # اعمال امتیاز (فقط یک بار)
         quest = next((q for q in QUEST_ACTIONS if q["id"] == quest_id), None)
         if quest:
             update_user(chat_id, score=quest["points"], total_quests_completed=1)
@@ -1967,14 +1982,14 @@ def schedule_best_users():
 # ۲۰. سیستم ارسال روزانه (بدون تفسیر حدیث)
 # =========================================================
 def send_daily_posts():
-    """ارسال محتوای روزانه در ۳ زمان مشخص (بدون تفسیر حدیث)"""
+    """ارسال محتوای روزانه در ۳ زمان مشخص (بدون تفسیر حدیث) با بررسی بازه زمانی"""
     try:
         if not FEATURES["daily_posts"]:
             return
         
         now = datetime.now()
         
-        # زمان‌های ارسال: ۸ صبح، ۱۲ ظهر، ۱۸ عصر
+        # زمان‌های ارسال: ۸ صبح، ۱۲ ظهر، ۱۸ عصر (با بازه ۲ دقیقه)
         scheduled_times = [
             (8, 0, "صبح 🌅"),
             (12, 0, "ظهر ☀️"),
@@ -1982,7 +1997,13 @@ def send_daily_posts():
         ]
         
         for hour, minute, time_name in scheduled_times:
-            if now.hour == hour and now.minute == minute:
+            # بررسی بازه زمانی (دقیقه ۰ تا ۲)
+            if now.hour == hour and 0 <= now.minute <= 2:
+                # جلوگیری از ارسال چندباره
+                if now.minute != 0:
+                    time.sleep(1)
+                    continue
+                
                 logger.info(f"🔄 شروع ارسال پست روزانه - {time_name}")
                 
                 # ۱. آیه روز از قرآن با تفسیر
@@ -2428,7 +2449,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "12.0",
+        "version": "13.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "quran_records": len(QURAN_DATA),
@@ -2442,7 +2463,6 @@ def health():
         "port": PORT,
         "supported_languages": ["fa", "en", "ar"],
         "islamic_knowledge_engine": FEATURES["islamic_knowledge_engine"],
-        "semantic_search": FEATURES["semantic_search"],
         "jdatetime_installed": HAS_JDATETIME
     }), 200
 
@@ -2519,7 +2539,7 @@ def webhook_token():
                 )
                 return "OK", 200
 
-            # بررسی عضویت (رفع باگ)
+            # بررسی عضویت با مدیریت خطا (رفع باگ)
             if chat_id != ADMIN_ID:
                 try:
                     is_member = check_membership(chat_id)
@@ -2532,6 +2552,7 @@ def webhook_token():
                         return "OK", 200
                 except Exception as e:
                     logger.error(f"خطا در بررسی عضویت: {e}")
+                    # در صورت خطا، اجازه دسترسی بده
 
             # پردازش وضعیت‌های خاص
             try:
@@ -2739,6 +2760,53 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
+            # حدیث روز (بدون تفسیر)
+            # ===========================
+            if cb_data == "menu_hadith":
+                if not FEATURES["hadith_dhikr"]:
+                    send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
+                    return "OK", 200
+                
+                item = random.choice(HADITHS_WITH_DHIKR)
+                msg = f"""🕊️ <b>حدیث روز</b>
+
+{item['hadith']}
+
+🔹 <b>ذکر روزانه:</b>
+{item['dhikr']}
+
+🏷️ دسته: {item['category']}
+
+💚 با یاد خدا دل‌ها آرام می‌گیرد."""
+                send_message(chat_id, msg, main_menu(chat_id, lang))
+                update_user(chat_id, score=1)
+                update_user_score(chat_id, "hadith_read", user)
+                return "OK", 200
+
+            # ===========================
+            # قرآن در لحظه
+            # ===========================
+            if cb_data == "menu_instant_quran":
+                if not FEATURES["instant_quran"]:
+                    send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
+                    return "OK", 200
+                
+                item = random.choice(INSTANT_QURAN_FULL)
+                msg = f"""📖 <b>قرآن در لحظه</b>
+
+<b>{item['surah']} (آیه {item['verse']})</b>
+
+{item['arabic']}
+
+✨ {item['trans']}
+
+💚 هر لحظه با قرآن، هر لحظه با نور."""
+                send_message(chat_id, msg, main_menu(chat_id, lang))
+                update_user(chat_id, score=1)
+                update_user_score(chat_id, "instant_quran", user)
+                return "OK", 200
+
+            # ===========================
             # سیستم دعوت
             # ===========================
             if cb_data == "menu_referral":
@@ -2827,8 +2895,6 @@ def webhook_token():
                             # انجام کوئست
                             success, message = complete_quest(chat_id, quest_id, user)
                             send_message(chat_id, message, quest_keyboard(lang) if success else main_menu(chat_id, lang))
-                            if success:
-                                update_user_score(chat_id, "quest_complete", user)
                         else:
                             send_message(
                                 chat_id,
@@ -2842,8 +2908,6 @@ def webhook_token():
                     # انجام کوئست
                     success, message = complete_quest(chat_id, quest_id, user)
                     send_message(chat_id, message, quest_keyboard(lang) if success else main_menu(chat_id, lang))
-                    if success:
-                        update_user_score(chat_id, "quest_complete", user)
                 elif quest_id == "show_quest_points":
                     # نمایش وضعیت کوئست‌ها
                     status = get_quests_status(chat_id)
@@ -3797,13 +3861,27 @@ def check_membership(chat_id):
 # ۲۷. اتصال هوش مصنوعی DeepSeek (با پشتیبانی از خطا و رفع باگ)
 # =========================================================
 def ask_deepseek(question, lang):
-    """ارسال سوال به DeepSeek با مدیریت کامل خطا"""
+    """ارسال سوال به DeepSeek با مدیریت کامل خطا و Rate Limit"""
     if not FEATURES["deepseek_ai"]:
         return "🔧 این ویژگی در حال حاضر غیرفعال است."
     
     if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
         logger.warning("کلید DeepSeek نامعتبر است")
         return "🔑 کلید API هوش مصنوعی تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
+    
+    # مدیریت Rate Limit
+    current_time = time.time()
+    if chat_id in RATE_LIMIT_COUNTER:
+        if current_time - RATE_LIMIT_TIME.get(chat_id, 0) < 60:
+            RATE_LIMIT_COUNTER[chat_id] = RATE_LIMIT_COUNTER.get(chat_id, 0) + 1
+            if RATE_LIMIT_COUNTER[chat_id] > 5:
+                return "⏳ تعداد درخواست‌های شما زیاد شده است. لطفاً یک دقیقه صبر کنید و دوباره تلاش کنید."
+        else:
+            RATE_LIMIT_COUNTER[chat_id] = 1
+            RATE_LIMIT_TIME[chat_id] = current_time
+    else:
+        RATE_LIMIT_COUNTER[chat_id] = 1
+        RATE_LIMIT_TIME[chat_id] = current_time
     
     language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
     
@@ -3851,6 +3929,7 @@ def ask_deepseek(question, lang):
             return "🔑 کلید API نامعتبر است. لطفاً با ادمین تماس بگیرید."
         elif res.status_code == 429:
             logger.error("محدودیت درخواست DeepSeek (429)")
+            time.sleep(5)
             return "⏳ تعداد درخواست‌ها محدود شده است. چند لحظه صبر کنید و دوباره تلاش کنید."
         else:
             logger.error(f"خطای DeepSeek: {res.status_code} - {res.text[:200]}")
@@ -3911,7 +3990,8 @@ def startup():
                 try:
                     time.sleep(21600)  # ۶ ساعت
                     MEMBERSHIP_CACHE.clear()
-                    logger.info("🧹 کش عضویت پاکسازی شد.")
+                    SEARCH_CACHE.clear()
+                    logger.info("🧹 کش عضویت و جستجو پاکسازی شد.")
                 except Exception as e:
                     logger.error(f"خطا در پاکسازی کش: {e}")
         
@@ -3924,7 +4004,6 @@ def startup():
         logger.info(f"🌐 سرور روی پورت {PORT} در حال اجراست...")
         logger.info(f"🌍 زبان‌های پشتیبانی: فارسی, English, العربية")
         logger.info(f"🧠 موتور دانش اسلامی: {'فعال' if FEATURES['islamic_knowledge_engine'] else 'غیرفعال'}")
-        logger.info(f"🔍 جستجوی معنایی: {'فعال' if FEATURES['semantic_search'] else 'غیرفعال'}")
         logger.info(f"📅 تاریخ شمسی: {'فعال' if HAS_JDATETIME else 'غیرفعال (استفاده از میلادی)'}")
         
     except Exception as e:
