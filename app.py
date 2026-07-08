@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۰.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۱.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی معنایی
 """
@@ -182,17 +182,28 @@ LOCAL_ARTICLES = [
 ]
 
 # =========================================================
-# ۷. جوایز و عناوین کاربران (سیستم تشویقی)
+# ۷. جوایز و عناوین کاربران (سیستم تشویقی کامل)
 # =========================================================
 USER_TITLES = {
     0: "🌱 تازه‌کار قرآنی",
-    50: "📖 قرآن‌خوان مبتدی",
-    100: "🌟 نورانی",
-    200: "💎 حافظ قرآن",
-    350: "🕊️ عاشق قرآن",
-    500: "🔥 مجتهد قرآنی",
-    750: "👑 سلطان قرآن",
-    1000: "🌹 پیشوای قرآنی"
+    10: "📖 قرآن‌خوان مبتدی",
+    30: "🌟 نورانی",
+    60: "💎 حافظ قرآن",
+    100: "🕊️ عاشق قرآن",
+    150: "🔥 مجتهد قرآنی",
+    250: "👑 سلطان قرآن",
+    500: "🌹 پیشوای قرآنی"
+}
+
+USER_TITLE_DESCRIPTIONS = {
+    "🌱 تازه‌کار قرآنی": "شروع راه نورانی! با فعالیت‌های روزانه امتیاز جمع کن و به مراحل بالاتر برس.",
+    "📖 قرآن‌خوان مبتدی": "قدم اول رو برداشتی! با جستجوی قرآن و مطالعه حدیث به راهت ادامه بده.",
+    "🌟 نورانی": "نور قرآن در دلت روشن شده! با ارسال پیشنهادات مفید امتیاز بیشتری کسب کن.",
+    "💎 حافظ قرآن": "به جمع حافظان قرآن پیوستی! با تلاوت روزانه و تدبر در آیات، نورت رو بیشتر کن.",
+    "🕊️ عاشق قرآن": "عشق به قرآن در دلت جای گرفته! با دعوت از دوستان و مطالعه صحیفه سجادیه به اوج برس.",
+    "🔥 مجتهد قرآنی": "تلاش و کوشش تو ستودنی است! با مطالعه مقالات علمی و تفکر در آیات، به درجات بالاتر برس.",
+    "👑 سلطان قرآن": "تو یک سلطان در دنیای قرآن هستی! با راهنمایی دیگران و اشتراک‌گذاری دانش، نورافشانی کن.",
+    "🌹 پیشوای قرآنی": "تو الگوی دیگران در مسیر قرآن هستی! با حفظ این جایگاه، راه را برای دیگران روشن کن."
 }
 
 ACHIEVEMENTS = {
@@ -684,7 +695,7 @@ def set_publish_index(book_name, index_value):
         logger.error(f"خطا در تنظیم وضعیت انتشار {book_name}: {e}")
 
 def get_leaderboard(limit=10):
-    """دریافت لیگ قرآنی با کاربران فعال"""
+    """دریافت لیگ قرآنی با کاربران واقعی"""
     try:
         conn = db_conn()
         cur = conn.cursor()
@@ -698,16 +709,9 @@ def get_leaderboard(limit=10):
         users = cur.fetchall()
         conn.close()
         
-        # اگر کاربری وجود نداشت، لیست نمونه برگردان
+        # اگر کاربری وجود نداشت، پیام خالی برگردان
         if not users:
-            logger.info("لیگ قرآنی خالی است، استفاده از داده‌های نمونه")
-            return [
-                ("امیرحسین", 150, 25, 7, 3),
-                ("زهرا", 120, 20, 5, 2),
-                ("محمد", 100, 18, 4, 1),
-                ("سارا", 80, 15, 3, 0),
-                ("علی", 60, 12, 2, 0)
-            ]
+            return []
         
         return users
     except Exception as e:
@@ -1654,6 +1658,10 @@ def get_user_title(score):
             return title
     return "🌱 کاربر قرآنی"
 
+def get_user_title_description(title):
+    """دریافت توضیحات عنوان کاربر"""
+    return USER_TITLE_DESCRIPTIONS.get(title, "در مسیر رشد و تعالی قرآنی قدم بردار!")
+
 def check_achievements(chat_id, action, user_data):
     """بررسی و ثبت دستاوردهای جدید"""
     if not FEATURES["achievement_system"]:
@@ -1806,35 +1814,31 @@ def get_quests_status(chat_id):
         return []
 
 # =========================================================
-# ۱۹. سیستم بهترین کاربر روز و هفته
+# ۱۹. سیستم بهترین کاربر روز و هفته (واقعی)
 # =========================================================
-def get_best_user(period_type):
-    """دریافت بهترین کاربر روز یا هفته"""
+def get_best_user_real(period_type):
+    """دریافت بهترین کاربر واقعی روز یا هفته"""
     try:
         conn = db_conn()
         cur = conn.cursor()
         
         if period_type == "daily":
-            # بهترین کاربر امروز
+            # بهترین کاربر امروز (بر اساس امتیاز واقعی)
             today = datetime.now().date().isoformat()
             cur.execute("""
-                SELECT user_id, user_name, score, period_date 
-                FROM best_users 
-                WHERE period_type = 'daily' AND period_date = ?
+                SELECT chat_id, name, score 
+                FROM users 
+                WHERE last_active > datetime('now', '-1 day')
                 ORDER BY score DESC 
                 LIMIT 1
-            """, (today,))
+            """)
         else:
-            # بهترین کاربر هفته (جمعه)
-            today = datetime.now().date()
-            days_since_friday = (today.weekday() - 4) % 7
-            last_friday = today - timedelta(days=days_since_friday)
-            
+            # بهترین کاربر هفته (بر اساس امتیاز واقعی)
             cur.execute("""
-                SELECT user_id, user_name, score, period_date 
-                FROM best_users 
-                WHERE period_type = 'weekly'
-                ORDER BY created_at DESC 
+                SELECT chat_id, name, score 
+                FROM users 
+                WHERE last_active > datetime('now', '-7 days')
+                ORDER BY score DESC 
                 LIMIT 1
             """)
         
@@ -1844,18 +1848,8 @@ def get_best_user(period_type):
         if row:
             return {
                 "user_id": row[0],
-                "user_name": row[1],
-                "score": row[2],
-                "date": row[3]
-            }
-        
-        # اگر کاربری وجود نداشت، بهترین کاربر از بین کاربران واقعی
-        users = get_leaderboard(1)
-        if users:
-            return {
-                "user_id": None,
-                "user_name": users[0][0],
-                "score": users[0][1],
+                "user_name": row[1] or "کاربر ناشناس",
+                "score": row[2] or 0,
                 "date": datetime.now().date().isoformat()
             }
         
@@ -1864,10 +1858,10 @@ def get_best_user(period_type):
         logger.error(f"خطا در دریافت بهترین کاربر: {e}")
         return None
 
-def save_best_user(period_type):
-    """ذخیره بهترین کاربر روز یا هفته"""
+def save_best_user_real(period_type):
+    """ذخیره بهترین کاربر واقعی روز یا هفته"""
     try:
-        # دریافت کاربر با بیشترین امتیاز امروز
+        # دریافت کاربر با بیشترین امتیاز
         conn = db_conn()
         cur = conn.cursor()
         
@@ -1925,28 +1919,30 @@ def save_best_user(period_type):
 🕌 با تلاش خود الگوی دیگران باش."""
             
             send_message(CHANNEL_ID, message)
-            logger.info(f"بهترین کاربر {period_type} ذخیره شد: {name} با {score} امتیاز")
+            logger.info(f"بهترین کاربر واقعی {period_type} ذخیره شد: {name} با {score} امتیاز")
+        else:
+            logger.info(f"هیچ کاربری برای بهترین {period_type} یافت نشد.")
         
         conn.close()
     except Exception as e:
         logger.error(f"خطا در ذخیره بهترین کاربر: {e}")
 
 def schedule_best_users():
-    """برنامه‌ریزی برای ثبت بهترین کاربران"""
+    """برنامه‌ریزی برای ثبت بهترین کاربران واقعی"""
     while True:
         try:
             now = datetime.now()
             
             # هر شب ساعت ۲۳:۵۹ بهترین کاربر روز
             if now.hour == 23 and now.minute == 59 and FEATURES["best_user_daily"]:
-                save_best_user("daily")
-                logger.info("بهترین کاربر روز ثبت شد.")
+                save_best_user_real("daily")
+                logger.info("بهترین کاربر روز واقعی ثبت شد.")
                 time.sleep(60)
             
             # هر جمعه ساعت ۲۳:۵۹ بهترین کاربر هفته
             if now.weekday() == 4 and now.hour == 23 and now.minute == 59 and FEATURES["best_user_weekly"]:
-                save_best_user("weekly")
-                logger.info("بهترین کاربر هفته ثبت شد.")
+                save_best_user_real("weekly")
+                logger.info("بهترین کاربر هفته واقعی ثبت شد.")
                 time.sleep(60)
             
             time.sleep(30)
@@ -1957,8 +1953,8 @@ def schedule_best_users():
 # =========================================================
 # ۲۰. سیستم ارسال روزانه با تفسیر هوشمند
 # =========================================================
-def get_daily_interpretation(text, lang="fa"):
-    """دریافت تفسیر هوشمند برای متن با استفاده از DeepSeek"""
+def get_daily_interpretation_with_context(text, lang="fa", context=""):
+    """دریافت تفسیر هوشمند با توجه به متن و زمینه کاربر"""
     try:
         if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
             return "تفسیر: این آیه/حدیث یادآور اهمیت ایمان و عمل صالح در زندگی است."
@@ -1970,11 +1966,15 @@ def get_daily_interpretation(text, lang="fa"):
             "Content-Type": "application/json"
         }
         
+        context_prompt = f"Consider this context: {context}" if context else ""
+        
         prompt = f"""Provide a brief, profound interpretation (1-3 sentences) of this Islamic text for medical professionals and students. Make it thoughtful and impactful:
 
 Text: {text}
 
-Reply in {language_name}. Keep it short, meaningful, and relevant to healthcare workers. Focus on the spiritual and ethical lessons that can be applied in medical practice and daily life."""
+{context_prompt}
+
+Reply in {language_name}. Keep it short, meaningful, and relevant to healthcare workers. Focus on the spiritual and ethical lessons that can be applied in medical practice and daily life. Connect it to real-life situations like work stress, patient care, studying, or personal challenges."""
 
         payload = {
             "model": "deepseek-chat",
@@ -2025,10 +2025,11 @@ def send_daily_posts():
                 q_item, q_idx = next_item("quran", QURAN_DATA)
                 q_msg = ""
                 if q_item:
-                    # دریافت تفسیر هوشمند
+                    # دریافت تفسیر هوشمند با زمینه
+                    context = "این آیه برای پزشکان و دانشجویان علوم پزشکی در نظر گرفته شده است."
                     interpretation = q_item.get('interpretation', '')
                     if not interpretation or len(interpretation) < 10:
-                        interpretation = get_daily_interpretation(q_item['text'], "fa")
+                        interpretation = get_daily_interpretation_with_context(q_item['text'], "fa", context)
                     
                     topics = ', '.join(q_item.get('topics', ['عمومی']))
                     
@@ -2055,7 +2056,8 @@ def send_daily_posts():
                 hadith_item = random.choice(HADITHS_WITH_DHIKR)
                 hadith_interpretation = hadith_item.get('interpretation', '')
                 if not hadith_interpretation or len(hadith_interpretation) < 10:
-                    hadith_interpretation = get_daily_interpretation(hadith_item['hadith'], "fa")
+                    context = "این حدیث برای کارکنان و دانشجویان علوم پزشکی با چالش‌های روزانه مناسب است."
+                    hadith_interpretation = get_daily_interpretation_with_context(hadith_item['hadith'], "fa", context)
                 
                 hadith_topics = ', '.join(hadith_item.get('topics', ['عمومی']))
                 
@@ -2192,8 +2194,8 @@ def handle_state_message(chat_id, text, user):
     if state == "waiting_quran_search":
         send_chat_action(chat_id, "typing")
         
-        # بررسی آیا متن طولانی است و نیاز به Semantic Search دارد
-        if len(text.split()) <= 5 and text in TOPICS_DATA:
+        # بررسی آیا متن در TOPICS_DATA وجود دارد برای Semantic Search
+        if text in TOPICS_DATA:
             # جستجوی معنایی با موتور دانش اسلامی
             results = semantic_search(text)
             if results:
@@ -2478,7 +2480,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "10.0",
+        "version": "11.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "quran_records": len(QURAN_DATA),
@@ -2569,15 +2571,20 @@ def webhook_token():
                 )
                 return "OK", 200
 
-            # بررسی عضویت
+            # بررسی عضویت (رفع باگ)
             if chat_id != ADMIN_ID:
-                if not check_membership(chat_id):
-                    send_message(
-                        chat_id,
-                        safe_text(lang, "force_join", name=first_name, channel=CHANNEL_ID),
-                        join_keyboard()
-                    )
-                    return "OK", 200
+                try:
+                    is_member = check_membership(chat_id)
+                    if not is_member:
+                        send_message(
+                            chat_id,
+                            safe_text(lang, "force_join", name=first_name, channel=CHANNEL_ID),
+                            join_keyboard()
+                        )
+                        return "OK", 200
+                except Exception as e:
+                    logger.error(f"خطا در بررسی عضویت: {e}")
+                    # در صورت خطا، اجازه دسترسی بده
 
             # پردازش وضعیت‌های خاص
             try:
@@ -2593,8 +2600,9 @@ def webhook_token():
             # نمایش منوی اصلی با پیام خوش‌آمدگویی پویا
             greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
             
-            # دریافت عنوان کاربر
+            # دریافت عنوان کاربر و توضیحات آن
             title = get_user_title(user.get("score", 0))
+            title_desc = get_user_title_description(title)
             
             if lang == "fa":
                 welcome_text = f"""{greeting}
@@ -2603,6 +2611,7 @@ def webhook_token():
 
 به ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش آمدی.
 👑 عنوان شما: {title}
+💡 {title_desc}
 
 ✨ اینجا همراه همیشگی تو در مسیر نور و معرفت است:
 • جستجوی هوشمند قرآن با ترجمه و تفسیر 📖
@@ -2662,36 +2671,51 @@ def webhook_token():
                 user = get_user(chat_id)
                 lang = user["lang"]
 
-                if chat_id != ADMIN_ID and not check_membership(chat_id):
-                    send_message(
-                        chat_id,
-                        safe_text(lang, "force_join", name=first_name, channel=CHANNEL_ID),
-                        join_keyboard()
-                    )
+                if chat_id != ADMIN_ID:
+                    try:
+                        is_member = check_membership(chat_id)
+                        if not is_member:
+                            send_message(
+                                chat_id,
+                                safe_text(lang, "force_join", name=first_name, channel=CHANNEL_ID),
+                                join_keyboard()
+                            )
+                            return "OK", 200
+                    except Exception as e:
+                        logger.error(f"خطا در بررسی عضویت: {e}")
+                
+                greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
+                title = get_user_title(user.get("score", 0))
+                if lang == "fa":
+                    welcome_text = f"{greeting}\n\n{first_name} جان! 😍\n\nبه ربات کانون قرآن و عترت خوش آمدی.\n👑 عنوان: {title}\n\nاز منوی زیر استفاده کن:"
                 else:
-                    greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
-                    title = get_user_title(user.get("score", 0))
-                    if lang == "fa":
-                        welcome_text = f"{greeting}\n\n{first_name} جان! 😍\n\nبه ربات کانون قرآن و عترت خوش آمدی.\n👑 عنوان: {title}\n\nاز منوی زیر استفاده کن:"
-                    else:
-                        welcome_text = safe_text(lang, "welcome", name=first_name)
-                    send_message(chat_id, welcome_text, main_menu(chat_id, lang))
+                    welcome_text = safe_text(lang, "welcome", name=first_name)
+                send_message(chat_id, welcome_text, main_menu(chat_id, lang))
                 return "OK", 200
 
             # ===========================
             # تأیید عضویت
             # ===========================
             if cb_data == "check_join":
-                if check_membership(chat_id):
+                try:
+                    is_member = check_membership(chat_id)
+                    if is_member:
+                        send_message(
+                            chat_id,
+                            safe_text(lang, "joined_success"),
+                            main_menu(chat_id, lang)
+                        )
+                    else:
+                        send_message(
+                            chat_id,
+                            safe_text(lang, "not_joined_yet"),
+                            join_keyboard()
+                        )
+                except Exception as e:
+                    logger.error(f"خطا در بررسی عضویت: {e}")
                     send_message(
                         chat_id,
-                        safe_text(lang, "joined_success"),
-                        main_menu(chat_id, lang)
-                    )
-                else:
-                    send_message(
-                        chat_id,
-                        safe_text(lang, "not_joined_yet"),
+                        "⚠️ خطا در بررسی عضویت. لطفاً دوباره تلاش کنید.",
                         join_keyboard()
                     )
                 return "OK", 200
@@ -2720,13 +2744,18 @@ def webhook_token():
             # ===========================
             # بررسی عضویت
             # ===========================
-            if chat_id != ADMIN_ID and not check_membership(chat_id):
-                send_message(
-                    chat_id,
-                    safe_text(lang, "force_join", name=first_name, channel=CHANNEL_ID),
-                    join_keyboard()
-                )
-                return "OK", 200
+            if chat_id != ADMIN_ID:
+                try:
+                    is_member = check_membership(chat_id)
+                    if not is_member:
+                        send_message(
+                            chat_id,
+                            safe_text(lang, "force_join", name=first_name, channel=CHANNEL_ID),
+                            join_keyboard()
+                        )
+                        return "OK", 200
+                except Exception as e:
+                    logger.error(f"خطا در بررسی عضویت: {e}")
 
             # ===========================
             # موتور دانش اسلامی
@@ -2888,10 +2917,10 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
-            # بهترین کاربران
+            # بهترین کاربران (واقعی)
             # ===========================
             if cb_data == "show_best_daily":
-                best = get_best_user("daily")
+                best = get_best_user_real("daily")
                 if best:
                     msg = f"""🏅 <b>بهترین کاربر روز</b>
 
@@ -2908,7 +2937,7 @@ def webhook_token():
                 return "OK", 200
 
             if cb_data == "show_best_weekly":
-                best = get_best_user("weekly")
+                best = get_best_user_real("weekly")
                 if best:
                     msg = f"""🏆 <b>بهترین کاربر هفته</b>
 
@@ -3160,7 +3189,7 @@ def webhook_token():
                 return "OK", 200
 
             # ===========================
-            # مدیریت بهترین کاربران
+            # مدیریت بهترین کاربران (ادمین)
             # ===========================
             if cb_data == "admin_best_users":
                 if chat_id != ADMIN_ID:
@@ -3170,14 +3199,14 @@ def webhook_token():
                 msg = "🏆 <b>مدیریت بهترین کاربران</b>\n\n"
                 
                 # بهترین کاربر روز
-                best_daily = get_best_user("daily")
+                best_daily = get_best_user_real("daily")
                 if best_daily:
                     msg += f"🏅 بهترین کاربر روز:\n{best_daily['user_name']} — {best_daily['score']} امتیاز\n\n"
                 else:
                     msg += "🏅 بهترین کاربر روز: هنوز مشخص نشده\n\n"
                 
                 # بهترین کاربر هفته
-                best_weekly = get_best_user("weekly")
+                best_weekly = get_best_user_real("weekly")
                 if best_weekly:
                     msg += f"🏆 بهترین کاربر هفته:\n{best_weekly['user_name']} — {best_weekly['score']} امتیاز\n\n"
                 else:
@@ -3438,7 +3467,8 @@ https://ble.ir/{bot_username}"""
                     item = random.choice(HADITHS_WITH_DHIKR)
                     interpretation = item.get('interpretation', '')
                     if not interpretation or len(interpretation) < 10:
-                        interpretation = get_daily_interpretation(item['hadith'], lang)
+                        context = "این حدیث برای کارکنان و دانشجویان علوم پزشکی با چالش‌های روزانه مناسب است."
+                        interpretation = get_daily_interpretation_with_context(item['hadith'], lang, context)
                     
                     topics = ', '.join(item.get('topics', ['عمومی']))
                     
@@ -3465,7 +3495,8 @@ https://ble.ir/{bot_username}"""
                         return "OK", 200
                     
                     item = random.choice(INSTANT_QURAN_FULL)
-                    interpretation = get_daily_interpretation(item['arabic'], lang)
+                    context = "این آیه برای لحظات کوتاه تفکر و آرامش در زندگی روزمره پزشکان و دانشجویان مناسب است."
+                    interpretation = get_daily_interpretation_with_context(item['arabic'], lang, context)
                     
                     msg = f"""📖 <b>قرآن در لحظه</b>
 
@@ -3548,7 +3579,7 @@ https://ble.ir/{bot_username}"""
                             else:
                                 leaderboard += f"{i}. {name} — {score} امتیاز (🔥 {streak} روز، 🤝 {referrals} دعوت)\n"
                     else:
-                        leaderboard = "🌟 <b>لیگ قرآنی هنوز شروع نشده!</b>\n\n💡 اولین نفر باش و با استفاده از ربات امتیاز جمع کن:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝"
+                        leaderboard = "🌟 <b>هنوز کاربری در لیگ قرآنی ثبت نشده است!</b>\n\n💡 اولین نفر باش و با استفاده از ربات امتیاز جمع کن:\n• جستجوی قرآن 📖\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝"
                     
                     send_message(
                         chat_id,
@@ -3819,13 +3850,13 @@ def reminder_keyboard(lang):
     }
 
 # =========================================================
-# ۲۶. عضویت اجباری کانال بله (با کش)
+# ۲۶. عضویت اجباری کانال بله (با کش و مدیریت خطا)
 # =========================================================
 MEMBERSHIP_CACHE = {}
 CACHE_DURATION = 300  # 5 دقیقه
 
 def check_membership(chat_id):
-    """بررسی عضویت کاربر با استفاده از کش"""
+    """بررسی عضویت کاربر با استفاده از کش و مدیریت خطا"""
     if not CHANNEL_ID or not FEATURES["force_join"]:
         return True
     
@@ -3848,10 +3879,12 @@ def check_membership(chat_id):
             
             # ذخیره در کش
             MEMBERSHIP_CACHE[cache_key] = (is_member, time.time())
+            logger.info(f"عضویت کاربر {chat_id}: {is_member} (status: {status})")
             return is_member
         
-        MEMBERSHIP_CACHE[cache_key] = (False, time.time())
-        return False
+        # اگر پاسخ ناموفق بود، اجازه دسترسی بده (احتیاط)
+        logger.warning(f"پاسخ ناموفق از API برای عضویت {chat_id}: {result}")
+        return True
     except Exception as e:
         logger.error(f"خطا در بررسی عضویت {chat_id}: {e}")
         # در صورت خطا، اجازه دسترسی بده (احتیاط)
@@ -3962,11 +3995,11 @@ def startup():
         else:
             logger.info("ℹ️ اسکژولر روزانه غیرفعال است.")
         
-        # راه‌اندازی اسکجولر بهترین کاربران
+        # راه‌اندازی اسکجولر بهترین کاربران واقعی
         if FEATURES["best_user_daily"] or FEATURES["best_user_weekly"]:
             best_user_thread = threading.Thread(target=schedule_best_users, daemon=True)
             best_user_thread.start()
-            logger.info("✅ اسکژولر بهترین کاربران راه‌اندازی شد.")
+            logger.info("✅ اسکژولر بهترین کاربران واقعی راه‌اندازی شد.")
         
         # راه‌اندازی تمیزکاری کش
         def cache_cleaner():
