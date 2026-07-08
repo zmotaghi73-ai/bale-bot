@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۱.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۱۲.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
-با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی معنایی
+با موتور دانش اسلامی (Islamic Knowledge Engine) و جستجوی پیشرفته
 """
 
 import os
@@ -156,16 +156,26 @@ DEFAULT_TOPICS = {
 }
 
 # =========================================================
-# ۵. احادیث و ذکر روزانه (توسعه‌یافته با تفسیر)
+# ۵. احادیث و ذکر روزانه (بدون تفسیر)
 # =========================================================
 HADITHS_WITH_DHIKR = [
-    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش", "interpretation": "پزشکان و اساتید دانشگاه، با آموزش علم و دانش به دیگران، در زمره بهترین‌ها قرار می‌گیرند.", "topics": ["آموزش", "علم", "یادگیری"]},
-    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)", "category": "تفکر", "interpretation": "تفکر در آیات قرآن، قلب دانشجویان و پزشکان را آرامش می‌بخشد و بهار دل‌هایشان است.", "topics": ["تفکر", "آرامش", "قرآن"]},
-    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)", "category": "تلاوت", "interpretation": "پزشکان با تلاوت روزانه قرآن، یاد خدا را در قلب خود زنده نگه می‌دارند و با قدرت معنوی بیشتری به درمان می‌پردازند.", "topics": ["تلاوت", "قرآن", "یاد خدا"]},
-    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)", "category": "نورانی‌سازی", "interpretation": "اتاق عمل و بخش‌های بیمارستان، با تلاوت قرآن نورانی می‌شود و آرامش خاصی به بیماران می‌دهد.", "topics": ["نور", "قرآن", "آرامش"]},
-    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)", "category": "تلاوت", "interpretation": "پزشکانی که در مسیر درمان بیماران، قرآن می‌خوانند، اجر شهید دارند.", "topics": ["اجر", "شهادت", "قرآن"]},
-    {"hadith": "مؤمنان در محبت و مهربانی مانند یک پیکرند. 💚", "dhikr": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ (۱۰۰ بار)", "category": "اخوت", "interpretation": "کادر درمان با محبت و مهربانی به بیماران، مانند یک پیکر واحد عمل می‌کنند.", "topics": ["مهربانی", "اخوت", "همدلی"]},
-    {"hadith": "نیکی را به نیکی پاداش نیست، بلکه به احسان است. 🌟", "dhikr": "سُبْحَانَ اللَّهِ الْعَظِیمِ (۱۰۰ بار)", "category": "اخلاق", "interpretation": "پزشکان و پرستاران با احسان و نیکی به بیماران، پاداشی بزرگ از خداوند دریافت می‌کنند.", "topics": ["نیکی", "احسان", "پاداش"]},
+    {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش"},
+    {"hadith": "در قرآن بیندیشید که بهار دل‌هاست. ✨", "dhikr": "لَا إِلَٰهَ إِلَّا اللَّهُ (۱۰۰ بار)", "category": "تفکر"},
+    {"hadith": "قرآن عهد الهی با بندگان است؛ شایسته است هر روز در آن نظر شود. 📖", "dhikr": "اللَّهُ أَكْبَرُ (۱۰۰ بار)", "category": "تلاوت"},
+    {"hadith": "خانه‌هایتان را با تلاوت قرآن نورانی کنید. 🕯️", "dhikr": "أَسْتَغْفِرُ اللَّهَ (۱۰۰ بار)", "category": "نورانی‌سازی"},
+    {"hadith": "هر کس قرآن را با صدای بلند بخواند، خداوند به او اجر شهید می‌دهد. 🌹", "dhikr": "سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ (۱۰۰ بار)", "category": "تلاوت"},
+    {"hadith": "مؤمنان در محبت و مهربانی مانند یک پیکرند. 💚", "dhikr": "اللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ (۱۰۰ بار)", "category": "اخوت"},
+    {"hadith": "نیکی را به نیکی پاداش نیست، بلکه به احسان است. 🌟", "dhikr": "سُبْحَانَ اللَّهِ الْعَظِیمِ (۱۰۰ بار)", "category": "اخلاق"},
+]
+
+INSTANT_QURAN_FULL = [
+    {"surah": "الرحمن", "verse": 60, "arabic": "هَلْ جَزَاءُ الْإِحْسَانِ إِلَّا الْإِحْسَانُ", "trans": "آیا پاداش نیکی جز نیکی است؟"},
+    {"surah": "الضحی", "verse": 1, "arabic": "وَالضُّحَىٰ", "trans": "سوگند به روشنایی روز"},
+    {"surah": "الشرح", "verse": 5, "arabic": "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا", "trans": "پس یقیناً با دشواری آسانی است"},
+    {"surah": "التين", "verse": 1, "arabic": "وَالتِّينِ وَالزَّيْتُونِ", "trans": "سوگند به انجیر و زیتون"},
+    {"surah": "العلق", "verse": 1, "arabic": "اقْرَأْ بِاسْمِ رَبِّكَ الَّذِي خَلَقَ", "trans": "بخوان به نام پروردگارت که آفرید"},
+    {"surah": "القدر", "verse": 1, "arabic": "إِنَّا أَنزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ", "trans": "ما آن را در شب قدر نازل کردیم"},
+    {"surah": "البقره", "verse": 286, "arabic": "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا", "trans": "خداوند هیچ‌کس را جز به اندازه توانش تکلیف نمی‌کند"},
 ]
 
 # =========================================================
@@ -709,7 +719,7 @@ def get_leaderboard(limit=10):
         users = cur.fetchall()
         conn.close()
         
-        # اگر کاربری وجود نداشت، پیام خالی برگردان
+        # اگر کاربری وجود نداشت، لیست خالی برگردان
         if not users:
             return []
         
@@ -1015,7 +1025,7 @@ LANGS = {
         "admin_msg_sent": "✅ پیامت با عشق برای ادمین ارسال شد. 🙏",
         "under_construction": "🚧 این بخش در حال زیباتر شدن است. به‌زودی می‌آید.",
         "stats": "📊 آمار تو:\n\n👤 نام: {name}\n🏆 امتیاز: {score}\n📖 جستجوها: {search_count}\n🔥 روزهای پیاپی: {streak}\n⭐ امتیاز پیشنهادات: {feedback_score}\n📅 تاریخ عضویت: {join_date}\n👑 عنوان: {title}\n🎯 بازدیدها: {visits}\n✅ کوئست‌های انجام شده: {quests}\n🤝 دعوت‌ها: {referrals}\n💰 امتیاز دعوت: {referral_earned}",
-        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجوی هوشمند قرآن با ترجمه و تفسیر 📖\n• موتور دانش اسلامی (Islamic Knowledge Engine) 🧠\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی از گوگل اسکالر 📚\n• حدیث و ذکر روزانه با تفسیر 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n• پشتیبانی از زبان عربی 🇸🇦\n• جستجوی معنایی (Semantic Search) 🔍\n\n💚 همراه همیشگی تو در مسیر نور",
+        "about": "🌸 این ربات با عشق توسط کانون قرآن و عترت دانشگاه علوم پزشکی شیراز طراحی شده است.\n\n📚 امکانات:\n• جستجوی هوشمند قرآن با ترجمه و تفسیر 📖\n• موتور دانش اسلامی (Islamic Knowledge Engine) 🧠\n• هوش مصنوعی DeepSeek 🤖\n• مقالات علمی از گوگل اسکالر 📚\n• حدیث و ذکر روزانه 🕊️\n• قرآن در لحظه ✨\n• کارنامه و لیگ قرآنی 🏆\n• ارسال روزانه 🔔\n• ارسال پیشنهاد و انتقاد با امتیاز ⭐\n• کوئست‌های روزانه 🎯\n• بهترین کاربر روز و هفته 🏅\n• سیستم دعوت و پاداش 🤝\n• پشتیبانی از زبان عربی 🇸🇦\n• جستجوی معنایی (Semantic Search) 🔍\n\n💚 همراه همیشگی تو در مسیر نور",
         "daily_enable": "✅ دریافت روزانه فعال شد. هر روز با عشق محتوای جدید می‌فرستم.",
         "daily_disable": "❌ دریافت روزانه غیرفعال شد. هر وقت خواستی فعالش کن.",
         "daily_toggle": "🔔 دریافت روزانه",
@@ -1046,7 +1056,7 @@ LANGS = {
         "admin_best_users": "🏆 بهترین کاربران",
         "admin_referrals": "🤝 آمار دعوت‌ها",
         "menu_labels": {
-            "search_quran": "📖 جستجوی قرآن",
+            "islamic_search": "🧠 جستجوی هوشمند اسلامی",
             "ai": "🤖 هوش مصنوعی",
             "articles": "📚 مقالات علمی",
             "hadith": "🕊️ حدیث و ذکر روز",
@@ -1065,8 +1075,7 @@ LANGS = {
             "reminder": "⏰ یادآوری",
             "quests": "🎯 کوئست‌های روزانه",
             "best_users": "🏅 بهترین کاربران",
-            "referral": "🤝 دعوت از دوستان",
-            "islamic_engine": "🧠 موتور دانش اسلامی"
+            "referral": "🤝 دعوت از دوستان"
         }
     },
     "en": {
@@ -1081,7 +1090,7 @@ LANGS = {
         "admin_msg_sent": "✅ Your message was sent to admin.",
         "under_construction": "🚧 This section is under construction.",
         "stats": "📊 Your stats:\n\n👤 Name: {name}\n🏆 Score: {score}\n📖 Searches: {search_count}\n🔥 Streak: {streak}\n⭐ Feedback Score: {feedback_score}\n📅 Join Date: {join_date}\n👑 Title: {title}\n🎯 Visits: {visits}\n✅ Quests completed: {quests}\n🤝 Referrals: {referrals}\n💰 Referral earned: {referral_earned}",
-        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Smart Quran Search with interpretation 📖\n• Islamic Knowledge Engine 🧠\n• AI Assistant 🤖\n• Scientific Articles from Google Scholar 📚\n• Hadith & Dhikr with interpretation 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝\n• Arabic Language Support 🇸🇦\n• Semantic Search 🔍",
+        "about": "🌸 This bot is designed with love by the Quran & Etrat Center of Shiraz University of Medical Sciences.\n\n📚 Features:\n• Smart Islamic Search with interpretation 📖\n• Islamic Knowledge Engine 🧠\n• AI Assistant 🤖\n• Scientific Articles from Google Scholar 📚\n• Hadith & Dhikr 🕊️\n• Instant Quran ✨\n• Scorecard & Quran League 🏆\n• Daily Receive 🔔\n• Suggestion & Critique with points ⭐\n• Daily Quests 🎯\n• Best Users of the Day/Week 🏅\n• Referral System 🤝\n• Arabic Language Support 🇸🇦\n• Semantic Search 🔍",
         "daily_enable": "✅ Daily receive enabled.",
         "daily_disable": "❌ Daily receive disabled.",
         "daily_toggle": "🔔 Daily Receive",
@@ -1112,7 +1121,7 @@ LANGS = {
         "admin_best_users": "🏆 Best Users",
         "admin_referrals": "🤝 Referral Stats",
         "menu_labels": {
-            "search_quran": "📖 Quran Search",
+            "islamic_search": "🧠 Smart Islamic Search",
             "ai": "🤖 AI Assistant",
             "articles": "📚 Scientific Articles",
             "hadith": "🕊️ Hadith & Dhikr",
@@ -1131,8 +1140,7 @@ LANGS = {
             "reminder": "⏰ Reminder",
             "quests": "🎯 Daily Quests",
             "best_users": "🏅 Best Users",
-            "referral": "🤝 Invite Friends",
-            "islamic_engine": "🧠 Islamic Knowledge Engine"
+            "referral": "🤝 Invite Friends"
         }
     },
     "ar": {
@@ -1147,7 +1155,7 @@ LANGS = {
         "admin_msg_sent": "✅ تم إرسال رسالتك إلى المشرف.",
         "under_construction": "🚧 هذا القسم قيد الإنشاء.",
         "stats": "📊 إحصائياتك:\n\n👤 الاسم: {name}\n🏆 النقاط: {score}\n📖 عمليات البحث: {search_count}\n🔥 الأيام المتتالية: {streak}\n⭐ نقاط الاقتراحات: {feedback_score}\n📅 تاريخ الانضمام: {join_date}\n👑 اللقب: {title}\n🎯 الزيارات: {visits}\n✅ المهام المنجزة: {quests}\n🤝 الدعوات: {referrals}\n💰 نقاط الدعوة: {referral_earned}",
-        "about": "🌸 تم تصميم هذا البوت بحب من قبل مركز القرآن والعترة بجامعة علوم الطب شيراز.\n\n📚 الميزات:\n• البحث الذكي في القرآن مع الترجمة والتفسير 📖\n• محرك المعرفة الإسلامية 🧠\n• المساعد الذكي 🤖\n• المقالات العلمية من جوجل سكولار 📚\n• الحديث والذكر اليومي مع التفسير 🕊️\n• القرآن في لحظة ✨\n• بطاقة النتائج والدوري القرآني 🏆\n• الاستلام اليومي 🔔\n• الاقتراحات والنقد مع النقاط ⭐\n• المهام اليومية 🎯\n• أفضل مستخدمي اليوم والأسبوع 🏅\n• نظام الدعوة والمكافآت 🤝\n• دعم اللغة العربية 🇸🇦\n• البحث الدلالي 🔍",
+        "about": "🌸 تم تصميم هذا البوت بحب من قبل مركز القرآن والعترة بجامعة علوم الطب شيراز.\n\n📚 الميزات:\n• البحث الذكي في القرآن مع الترجمة والتفسير 📖\n• محرك المعرفة الإسلامية 🧠\n• المساعد الذكي 🤖\n• المقالات العلمية من جوجل سكولار 📚\n• الحديث والذكر اليومي 🕊️\n• القرآن في لحظة ✨\n• بطاقة النتائج والدوري القرآني 🏆\n• الاستلام اليومي 🔔\n• الاقتراحات والنقد مع النقاط ⭐\n• المهام اليومية 🎯\n• أفضل مستخدمي اليوم والأسبوع 🏅\n• نظام الدعوة والمكافآت 🤝\n• دعم اللغة العربية 🇸🇦\n• البحث الدلالي 🔍",
         "daily_enable": "✅ تم تفعيل الاستلام اليومي.",
         "daily_disable": "❌ تم تعطيل الاستلام اليومي.",
         "daily_toggle": "🔔 الاستلام اليومي",
@@ -1178,7 +1186,7 @@ LANGS = {
         "admin_best_users": "🏆 أفضل المستخدمين",
         "admin_referrals": "🤝 إحصائيات الدعوات",
         "menu_labels": {
-            "search_quran": "📖 البحث في القرآن",
+            "islamic_search": "🧠 البحث الإسلامي الذكي",
             "ai": "🤖 المساعد الذكي",
             "articles": "📚 المقالات العلمية",
             "hadith": "🕊️ الحديث والذكر اليومي",
@@ -1197,8 +1205,7 @@ LANGS = {
             "reminder": "⏰ تذكير",
             "quests": "🎯 المهام اليومية",
             "best_users": "🏅 أفضل المستخدمين",
-            "referral": "🤝 دعوة الأصدقاء",
-            "islamic_engine": "🧠 محرك المعرفة الإسلامية"
+            "referral": "🤝 دعوة الأصدقاء"
         }
     }
 }
@@ -1219,7 +1226,7 @@ def safe_text(lang_code, key, default=None, **kwargs):
     return text
 
 # =========================================================
-# ۱۴. موتور دانش اسلامی (Islamic Knowledge Engine)
+# ۱۴. موتور جستجوی هوشمند اسلامی (ادغام شده با جستجوی قرآن)
 # =========================================================
 def expand_topic(query):
     """توسعه موضوع با مترادف‌ها و کلمات کلیدی"""
@@ -1235,9 +1242,9 @@ def expand_topic(query):
     
     return list(set(expanded_terms))
 
-def semantic_search(query):
-    """جستجوی معنایی در تمام منابع اسلامی"""
-    if not FEATURES["semantic_search"]:
+def advanced_search(query):
+    """جستجوی پیشرفته در تمام منابع اسلامی"""
+    if not FEATURES["islamic_knowledge_engine"]:
         return None
     
     expanded_terms = expand_topic(query)
@@ -1298,7 +1305,6 @@ def semantic_search(query):
     for item in HADITHS_WITH_DHIKR:
         search_text = " ".join([
             str(item.get("hadith", "")),
-            str(item.get("interpretation", "")),
             " ".join(item.get("topics", []))
         ]).lower()
         
@@ -1322,81 +1328,88 @@ def semantic_search(query):
                 break
     
     # محدود کردن نتایج
-    results["quran"] = results["quran"][:3]
-    results["nahj"] = results["nahj"][:2]
-    results["sahifeh"] = results["sahifeh"][:2]
-    results["hadith"] = results["hadith"][:2]
-    results["articles"] = results["articles"][:2]
+    results["quran"] = results["quran"][:5]
+    results["nahj"] = results["nahj"][:3]
+    results["sahifeh"] = results["sahifeh"][:3]
+    results["hadith"] = results["hadith"][:3]
+    results["articles"] = results["articles"][:3]
     
     return results
 
-def format_semantic_results(results, query, lang="fa"):
-    """فرمت‌بندی نتایج جستجوی معنایی"""
+def format_advanced_results(results, query, lang="fa"):
+    """فرمت‌بندی نتایج جستجوی پیشرفته"""
     if not results:
         return f"🔍 نتیجه‌ای برای «{query}» در منابع اسلامی یافت نشد.\n\n💡 سعی کنید با کلمات کلیدی دیگری جستجو کنید."
     
-    output = f"""🧠 <b>موتور دانش اسلامی - جستجوی «{query}»</b>
+    has_results = False
+    output = f"""🧠 <b>موتور جستجوی هوشمند اسلامی - «{query}»</b>
 {'='*50}
 
 """
     
     # قرآن
     if results["quran"]:
+        has_results = True
         output += "📖 <b>آیات مرتبط در قرآن:</b>\n\n"
-        for i, item in enumerate(results["quran"][:3], 1):
+        for i, item in enumerate(results["quran"][:5], 1):
             output += f"{i}. <b>{item['surah']} (آیه {item['verse']})</b>\n"
-            output += f"   {item['text'][:50]}...\n"
-            output += f"   ✨ {item['trans'][:50]}...\n"
+            output += f"   {item['text']}\n"
+            output += f"   ✨ {item['trans']}\n"
             if item.get('interpretation'):
-                output += f"   💡 {item['interpretation'][:50]}...\n"
+                output += f"   💡 {item['interpretation']}\n"
             output += "\n"
     
     # نهج‌البلاغه
     if results["nahj"]:
+        has_results = True
         output += "📜 <b>فرازهایی از نهج‌البلاغه:</b>\n\n"
-        for i, item in enumerate(results["nahj"][:2], 1):
+        for i, item in enumerate(results["nahj"][:3], 1):
             output += f"{i}. <b>{item['type']} {item['number']}</b>\n"
-            output += f"   {item['text'][:50]}...\n"
-            output += f"   ✨ {item['trans'][:50]}...\n"
+            output += f"   {item['text']}\n"
+            output += f"   ✨ {item['trans']}\n"
             if item.get('interpretation'):
-                output += f"   💡 {item['interpretation'][:50]}...\n"
+                output += f"   💡 {item['interpretation']}\n"
             output += "\n"
     
     # صحیفه سجادیه
     if results["sahifeh"]:
+        has_results = True
         output += "🤲 <b>دعاهایی از صحیفه سجادیه:</b>\n\n"
-        for i, item in enumerate(results["sahifeh"][:2], 1):
+        for i, item in enumerate(results["sahifeh"][:3], 1):
             output += f"{i}. <b>{item['title']}</b>\n"
-            output += f"   {item['text'][:50]}...\n"
-            output += f"   ✨ {item['trans'][:50]}...\n"
+            output += f"   {item['text']}\n"
+            output += f"   ✨ {item['trans']}\n"
             if item.get('interpretation'):
-                output += f"   💡 {item['interpretation'][:50]}...\n"
+                output += f"   💡 {item['interpretation']}\n"
             output += "\n"
     
     # احادیث
     if results["hadith"]:
+        has_results = True
         output += "🕊️ <b>احادیث مرتبط:</b>\n\n"
-        for i, item in enumerate(results["hadith"][:2], 1):
-            output += f"{i}. {item['hadith'][:50]}...\n"
-            if item.get('interpretation'):
-                output += f"   💡 {item['interpretation'][:50]}...\n"
-            output += "\n"
+        for i, item in enumerate(results["hadith"][:3], 1):
+            output += f"{i}. {item['hadith']}\n"
+            output += f"   🔹 ذکر: {item['dhikr']}\n"
+            output += f"   🏷️ دسته: {item['category']}\n\n"
     
     # مقالات
     if results["articles"]:
+        has_results = True
         output += "📚 <b>مقالات مرتبط:</b>\n\n"
-        for i, item in enumerate(results["articles"][:2], 1):
+        for i, item in enumerate(results["articles"][:3], 1):
             output += f"{i}. <b>{item['title']}</b>\n"
-            output += f"   📝 {item['summary'][:50]}...\n"
-            output += f"   🏷️ دسته: {item['category']}\n"
-            output += "\n"
+            output += f"   📝 {item['summary']}\n"
+            output += f"   🏷️ دسته: {item['category']}\n\n"
+    
+    if not has_results:
+        return f"🔍 نتیجه‌ای برای «{query}» در منابع اسلامی یافت نشد.\n\n💡 سعی کنید با کلمات کلیدی دیگری جستجو کنید."
     
     output += "💡 <b>پیشنهاد:</b> برای دریافت تحلیل عمیق‌تر، از بخش «هوش مصنوعی» استفاده کنید."
     
     return output
 
 # =========================================================
-# ۱۵. جستجوی کامل قرآن و کتاب‌ها (با تفسیر)
+# ۱۵. جستجوی ساده قرآن (برای زمانی که موتور پیشرفته فعال نیست)
 # =========================================================
 def search_quran_only(q):
     """جستجو در قرآن با مدیریت خطا و بازگشت تفسیر"""
@@ -1607,7 +1620,7 @@ def calculate_reward(action, user_data):
         "feedback_high_score": {"points": 10, "emoji": "💎"},
         "quest_complete": {"points": 5, "emoji": "🎯"},
         "referral_bonus": {"points": 10, "emoji": "🤝"},
-        "semantic_search": {"points": 5, "emoji": "🧠"}
+        "advanced_search": {"points": 5, "emoji": "🧠"}
     }
     
     reward = rewards.get(action, {"points": 1, "emoji": "🌸"})
@@ -1699,7 +1712,7 @@ def check_achievements(chat_id, action, user_data):
         achievements.append("referrer_silver")
     if referral_count >= 20:
         achievements.append("referrer_gold")
-    if action == "semantic_search":
+    if action == "advanced_search":
         achievements.append("knowledge_seeker")
     
     # ذخیره دستاوردها
@@ -1951,59 +1964,10 @@ def schedule_best_users():
             time.sleep(60)
 
 # =========================================================
-# ۲۰. سیستم ارسال روزانه با تفسیر هوشمند
+# ۲۰. سیستم ارسال روزانه (بدون تفسیر حدیث)
 # =========================================================
-def get_daily_interpretation_with_context(text, lang="fa", context=""):
-    """دریافت تفسیر هوشمند با توجه به متن و زمینه کاربر"""
-    try:
-        if not DEEPSEEK_KEY or len(DEEPSEEK_KEY) < 10:
-            return "تفسیر: این آیه/حدیث یادآور اهمیت ایمان و عمل صالح در زندگی است."
-        
-        language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
-        
-        headers = {
-            "Authorization": f"Bearer {DEEPSEEK_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        context_prompt = f"Consider this context: {context}" if context else ""
-        
-        prompt = f"""Provide a brief, profound interpretation (1-3 sentences) of this Islamic text for medical professionals and students. Make it thoughtful and impactful:
-
-Text: {text}
-
-{context_prompt}
-
-Reply in {language_name}. Keep it short, meaningful, and relevant to healthcare workers. Focus on the spiritual and ethical lessons that can be applied in medical practice and daily life. Connect it to real-life situations like work stress, patient care, studying, or personal challenges."""
-
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 150
-        }
-        
-        res = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=20
-        )
-        
-        if res.status_code == 200:
-            data = res.json()
-            if "choices" in data and data["choices"]:
-                return data["choices"][0]["message"]["content"]
-        
-        return "تفسیر: این متن ارزشمند، یادآور اهمیت ایمان و عمل صالح در مسیر زندگی است."
-    except Exception as e:
-        logger.error(f"خطا در دریافت تفسیر: {e}")
-        return "تفسیر: این متن ارزشمند، یادآور اهمیت ایمان و عمل صالح در مسیر زندگی است."
-
 def send_daily_posts():
-    """ارسال محتوای روزانه در ۳ زمان مشخص با تفسیر هوشمند"""
+    """ارسال محتوای روزانه در ۳ زمان مشخص (بدون تفسیر حدیث)"""
     try:
         if not FEATURES["daily_posts"]:
             return
@@ -2025,12 +1989,7 @@ def send_daily_posts():
                 q_item, q_idx = next_item("quran", QURAN_DATA)
                 q_msg = ""
                 if q_item:
-                    # دریافت تفسیر هوشمند با زمینه
-                    context = "این آیه برای پزشکان و دانشجویان علوم پزشکی در نظر گرفته شده است."
-                    interpretation = q_item.get('interpretation', '')
-                    if not interpretation or len(interpretation) < 10:
-                        interpretation = get_daily_interpretation_with_context(q_item['text'], "fa", context)
-                    
+                    interpretation = q_item.get('interpretation', 'تفسیر: این آیه یادآور اهمیت ایمان و عمل صالح در زندگی است.')
                     topics = ', '.join(q_item.get('topics', ['عمومی']))
                     
                     q_msg = f"""📘 <b>آیه منتخب روز</b>
@@ -2052,15 +2011,8 @@ def send_daily_posts():
                     logger.info(f"آیه روزانه با تفسیر ارسال شد - {time_name}")
                     time.sleep(2)
                 
-                # ۲. حدیث روز با تفسیر
+                # ۲. حدیث روز (بدون تفسیر)
                 hadith_item = random.choice(HADITHS_WITH_DHIKR)
-                hadith_interpretation = hadith_item.get('interpretation', '')
-                if not hadith_interpretation or len(hadith_interpretation) < 10:
-                    context = "این حدیث برای کارکنان و دانشجویان علوم پزشکی با چالش‌های روزانه مناسب است."
-                    hadith_interpretation = get_daily_interpretation_with_context(hadith_item['hadith'], "fa", context)
-                
-                hadith_topics = ', '.join(hadith_item.get('topics', ['عمومی']))
-                
                 hadith_msg = f"""🕊️ <b>حدیث روز</b>
 
 {hadith_item['hadith']}
@@ -2068,16 +2020,13 @@ def send_daily_posts():
 🔹 <b>ذکر روزانه:</b>
 {hadith_item['dhikr']}
 
-💡 <b>تفسیر:</b> {hadith_interpretation}
-
 🏷️ دسته: {hadith_item['category']}
-🏷️ موضوعات: {hadith_topics}
 
 💚 با یاد خدا دل‌ها آرام می‌گیرد."""
                 
                 send_message(CHANNEL_ID, hadith_msg)
                 save_sent_message("daily_hadith", hadith_msg, CHANNEL_ID)
-                logger.info(f"حدیث روزانه با تفسیر ارسال شد - {time_name}")
+                logger.info(f"حدیث روزانه ارسال شد - {time_name}")
                 time.sleep(2)
                 
                 # ۳. ارسال به کاربرانی که دریافت روزانه فعال دارند
@@ -2190,22 +2139,23 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
 
-    # وضعیت جستجوی قرآن (با پشتیبانی از Semantic Search)
+    # وضعیت جستجوی پیشرفته اسلامی (ادغام شده با جستجوی قرآن)
     if state == "waiting_quran_search":
         send_chat_action(chat_id, "typing")
         
-        # بررسی آیا متن در TOPICS_DATA وجود دارد برای Semantic Search
-        if text in TOPICS_DATA:
-            # جستجوی معنایی با موتور دانش اسلامی
-            results = semantic_search(text)
+        # استفاده از موتور جستجوی پیشرفته
+        try:
+            results = advanced_search(text)
             if results:
-                formatted_result = format_semantic_results(results, text, lang)
+                formatted_result = format_advanced_results(results, text, lang)
                 send_message(chat_id, formatted_result, main_menu(chat_id, lang))
-                update_user(chat_id, state="none", score=2)
-                update_user_score(chat_id, "semantic_search", user)
+                update_user(chat_id, state="none", score=3)
+                update_user_score(chat_id, "advanced_search", user)
                 return True
+        except Exception as e:
+            logger.error(f"خطا در جستجوی پیشرفته: {e}")
         
-        # جستجوی عادی
+        # اگر موتور پیشرفته نتیجه‌ای نداد، جستجوی ساده قرآن
         results = search_quran_only(text)
         
         if results:
@@ -2213,9 +2163,8 @@ def handle_state_message(chat_id, text, user):
             for i, item in enumerate(results[:5], 1):
                 msg += f"{i}. {format_search_result(item, 'قرآن')}\n\n"
             
-            # اضافه کردن پیشنهاد برای جستجوی بیشتر
             if len(results) > 5:
-                msg += f"\n📌 {len(results)-5} نتیجه دیگر یافت شد. برای مشاهده بیشتر، جستجوی دقیق‌تری انجام دهید."
+                msg += f"\n📌 {len(results)-5} نتیجه دیگر یافت شد."
             
             send_message(chat_id, msg, main_menu(chat_id, lang))
             update_user(chat_id, score=1, search_count=1)
@@ -2230,7 +2179,6 @@ def handle_state_message(chat_id, text, user):
                     msg += f"{i}. {format_search_result(item, book_type)}\n\n"
                 send_message(chat_id, msg, main_menu(chat_id, lang))
             else:
-                # پیشنهاد کلمات کلیدی
                 suggestions = "💡 کلمات کلیدی پیشنهادی:\n• ایمان\n• صبر\n• نماز\n• توکل\n• رحمت\n• پزشکی\n• سلامت"
                 send_message(
                     chat_id,
@@ -2480,7 +2428,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "11.0",
+        "version": "12.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "quran_records": len(QURAN_DATA),
@@ -2584,7 +2532,6 @@ def webhook_token():
                         return "OK", 200
                 except Exception as e:
                     logger.error(f"خطا در بررسی عضویت: {e}")
-                    # در صورت خطا، اجازه دسترسی بده
 
             # پردازش وضعیت‌های خاص
             try:
@@ -2614,12 +2561,11 @@ def webhook_token():
 💡 {title_desc}
 
 ✨ اینجا همراه همیشگی تو در مسیر نور و معرفت است:
-• جستجوی هوشمند قرآن با ترجمه و تفسیر 📖
-• موتور دانش اسلامی (Islamic Knowledge Engine) 🧠
+• جستجوی هوشمند اسلامی با ترجمه و تفسیر 🧠
 • هوش مصنوعی پاسخ‌گو 🤖
 • مقالات علمی از گوگل اسکالر 📚
-• حدیث و ذکر روزانه با تفسیر 🕊️
-• قرآن در لحظه با ترجمه ✨
+• حدیث و ذکر روزانه 🕊️
+• قرآن در لحظه ✨
 • پیشنهاد و انتقاد با امتیاز ⭐
 • کوئست‌های روزانه 🎯
 • سیستم دعوت و پاداش 🤝
@@ -2758,38 +2704,38 @@ def webhook_token():
                     logger.error(f"خطا در بررسی عضویت: {e}")
 
             # ===========================
-            # موتور دانش اسلامی
+            # جستجوی هوشمند اسلامی (ادغام شده)
             # ===========================
-            if cb_data == "menu_islamic_engine":
+            if cb_data == "menu_islamic_search":
+                update_user(chat_id, state="waiting_quran_search")
                 if lang == "fa":
-                    msg = """🧠 <b>موتور دانش اسلامی (Islamic Knowledge Engine)</b>
+                    msg = f"""🧠 <b>جستجوی هوشمند اسلامی</b>
 
-این موتور هوشمند، جستجوی شما را در تمام منابع اسلامی انجام می‌دهد:
+🔍 کلمه یا موضوع مورد نظر خود را وارد کنید:
 
-📖 <b>قرآن کریم</b> - آیات مرتبط با تفسیر
+💡 <b>این موتور پیشرفته در تمام منابع زیر جستجو می‌کند:</b>
+
+📖 <b>قرآن کریم</b> - با ترجمه و تفسیر
 📜 <b>نهج‌البلاغه</b> - خطبه‌ها، نامه‌ها و حکمت‌ها
 🤲 <b>صحیفه سجادیه</b> - دعاهای نورانی
-🕊️ <b>احادیث</b> - روایات معصومین
+🕊️ <b>احادیث</b> - روایات معصومین با ذکر
 📚 <b>مقالات علمی</b> - از گوگل اسکالر
 
-🔍 <b>چگونه کار می‌کند؟</b>
-• هر کلمه یا موضوعی را وارد کنید
-• ربات مترادف‌ها و کلمات کلیدی را تشخیص می‌دهد
-• در همه منابع جستجو می‌کند
-• نتایج را به صورت دسته‌بندی شده نمایش می‌دهد
+🔍 <b>قابلیت‌های پیشرفته:</b>
+• تشخیص خودکار موضوع و مترادف‌ها
+• جستجوی معنایی (Semantic Search)
+• نمایش نتایج دسته‌بندی شده
+• اولویت با محتوای مرتبط با علوم پزشکی
 
 💡 <b>مثال‌ها:</b>
 • «صبر» → آیات صبر، روایات صبر، مقالات مرتبط
 • «استرس» → آیات آرامش، دعاهای مرتبط، مقالات روانشناسی
 • «امید» → آیات امید، حکمت‌های امید، مقالات امیدواری
 
-📝 <b>کافی است موضوع مورد نظر خود را در بخش «جستجوی قرآن» وارد کنید.</b>
-
-🌟 این موتور، ربات را از یک جستجوگر به یک دستیار پژوهشی اسلامی تبدیل می‌کند."""
+📝 لطفاً عبارت خود را ارسال کنید:"""
                 else:
-                    msg = safe_text(lang, "islamic_engine_info", default="🧠 Islamic Knowledge Engine\n\nSearch in Quran, Nahjolbalagheh, Sahifeh Sajjadieh, Hadiths and Articles.")
-                
-                send_message(chat_id, msg, main_menu(chat_id, lang))
+                    msg = safe_text(lang, "search_quran_prompt")
+                send_message(chat_id, msg, back_menu_keyboard(lang))
                 return "OK", 200
 
             # ===========================
@@ -3268,10 +3214,9 @@ def webhook_token():
 
 ✨ همراه همیشگی تو در مسیر نور و معرفت
 
-📖 جستجوی هوشمند قرآن با ترجمه و تفسیر
-🧠 موتور دانش اسلامی (Islamic Knowledge Engine)
+🧠 جستجوی هوشمند اسلامی با ترجمه و تفسیر
 🤖 هوش مصنوعی پاسخ‌گو
-🕊️ حدیث و ذکر روزانه با تفسیر
+🕊️ حدیث و ذکر روزانه
 🏆 لیگ قرآنی
 🎯 کوئست‌های روزانه
 🤝 سیستم دعوت و پاداش
@@ -3357,15 +3302,10 @@ https://ble.ir/{bot_username}"""
                 if lang == "fa":
                     help_text = """❓ <b>راهنمای استفاده از ربات</b>
 
-📖 <b>جستجوی هوشمند قرآن:</b>
+🧠 <b>جستجوی هوشمند اسلامی:</b>
 • عبارت مورد نظر را وارد کنید
-• نتایج شامل متن، ترجمه و تفسیر نمایش داده می‌شود
+• نتایج از قرآن، نهج‌البلاغه، صحیفه سجادیه، احادیث و مقالات
 • با کلمات کلیدی مانند «صبر»، «امید»، «استرس» جستجوی معنایی انجام می‌شود
-
-🧠 <b>موتور دانش اسلامی:</b>
-• جستجو در قرآن، نهج‌البلاغه، صحیفه سجادیه، احادیث و مقالات
-• تشخیص خودکار موضوع و مترادف‌ها
-• نمایش نتایج دسته‌بندی شده
 
 🤖 <b>هوش مصنوعی:</b>
 • هر سوال قرآنی یا دینی دارید بپرسید
@@ -3376,7 +3316,7 @@ https://ble.ir/{bot_username}"""
 • اولویت با مقالات قرآن، عترت و پزشکی
 
 🕊️ <b>حدیث و ذکر:</b>
-• دریافت حدیث روزانه با تفسیر
+• دریافت حدیث روزانه
 • ذکر مخصوص هر روز
 
 ✨ <b>قرآن در لحظه:</b>
@@ -3421,24 +3361,34 @@ https://ble.ir/{bot_username}"""
             if cb_data.startswith("menu_"):
                 action = cb_data.replace("menu_", "")
                 
-                if action == "search_quran":
-                    if not FEATURES["quran_search"]:
+                if action == "islamic_search":
+                    if not FEATURES["islamic_knowledge_engine"]:
                         send_message(chat_id, "🔧 این ویژگی در حال حاضر غیرفعال است.", main_menu(chat_id, lang))
                         return "OK", 200
                     update_user(chat_id, state="waiting_quran_search")
                     if lang == "fa":
-                        msg = f"""📖 <b>جستجوی هوشمند در منابع اسلامی</b>
+                        msg = f"""🧠 <b>جستجوی هوشمند اسلامی</b>
 
 🔍 کلمه یا موضوع مورد نظر خود را وارد کنید:
 
-💡 <b>نکته:</b> اگر موضوعی مانند «صبر»، «امید»، «استرس» وارد کنید، موتور دانش اسلامی تمام منابع را جستجو می‌کند.
+💡 <b>این موتور پیشرفته در تمام منابع زیر جستجو می‌کند:</b>
 
-📚 <b>منابع جستجو:</b>
-• قرآن کریم با تفسیر 📖
-• نهج‌البلاغه 📜
-• صحیفه سجادیه 🤲
-• احادیث 🕊️
-• مقالات علمی 📚
+📖 <b>قرآن کریم</b> - با ترجمه و تفسیر
+📜 <b>نهج‌البلاغه</b> - خطبه‌ها، نامه‌ها و حکمت‌ها
+🤲 <b>صحیفه سجادیه</b> - دعاهای نورانی
+🕊️ <b>احادیث</b> - روایات معصومین با ذکر
+📚 <b>مقالات علمی</b> - از گوگل اسکالر
+
+🔍 <b>قابلیت‌های پیشرفته:</b>
+• تشخیص خودکار موضوع و مترادف‌ها
+• جستجوی معنایی (Semantic Search)
+• نمایش نتایج دسته‌بندی شده
+• اولویت با محتوای مرتبط با علوم پزشکی
+
+💡 <b>مثال‌ها:</b>
+• «صبر» → آیات صبر، روایات صبر، مقالات مرتبط
+• «استرس» → آیات آرامش، دعاهای مرتبط، مقالات روانشناسی
+• «امید» → آیات امید، حکمت‌های امید، مقالات امیدواری
 
 📝 لطفاً عبارت خود را ارسال کنید:"""
                     else:
@@ -3465,13 +3415,6 @@ https://ble.ir/{bot_username}"""
                         return "OK", 200
                     
                     item = random.choice(HADITHS_WITH_DHIKR)
-                    interpretation = item.get('interpretation', '')
-                    if not interpretation or len(interpretation) < 10:
-                        context = "این حدیث برای کارکنان و دانشجویان علوم پزشکی با چالش‌های روزانه مناسب است."
-                        interpretation = get_daily_interpretation_with_context(item['hadith'], lang, context)
-                    
-                    topics = ', '.join(item.get('topics', ['عمومی']))
-                    
                     msg = f"""🕊️ <b>حدیث روز</b>
 
 {item['hadith']}
@@ -3479,10 +3422,7 @@ https://ble.ir/{bot_username}"""
 🔹 <b>ذکر روزانه:</b>
 {item['dhikr']}
 
-💡 <b>تفسیر:</b> {interpretation}
-
 🏷️ دسته: {item['category']}
-🏷️ موضوعات: {topics}
 
 💚 با یاد خدا دل‌ها آرام می‌گیرد."""
                     send_message(chat_id, msg, main_menu(chat_id, lang))
@@ -3495,9 +3435,6 @@ https://ble.ir/{bot_username}"""
                         return "OK", 200
                     
                     item = random.choice(INSTANT_QURAN_FULL)
-                    context = "این آیه برای لحظات کوتاه تفکر و آرامش در زندگی روزمره پزشکان و دانشجویان مناسب است."
-                    interpretation = get_daily_interpretation_with_context(item['arabic'], lang, context)
-                    
                     msg = f"""📖 <b>قرآن در لحظه</b>
 
 <b>{item['surah']} (آیه {item['verse']})</b>
@@ -3505,8 +3442,6 @@ https://ble.ir/{bot_username}"""
 {item['arabic']}
 
 ✨ {item['trans']}
-
-💡 <b>تفسیر:</b> {interpretation}
 
 💚 هر لحظه با قرآن، هر لحظه با نور."""
                     send_message(chat_id, msg, main_menu(chat_id, lang))
@@ -3663,37 +3598,6 @@ https://ble.ir/{bot_username}"""
                     
                     send_message(chat_id, msg, referral_keyboard(lang, referral_code))
                 
-                elif action == "islamic_engine":
-                    if lang == "fa":
-                        msg = """🧠 <b>موتور دانش اسلامی (Islamic Knowledge Engine)</b>
-
-این موتور هوشمند، جستجوی شما را در تمام منابع اسلامی انجام می‌دهد:
-
-📖 <b>قرآن کریم</b> - آیات مرتبط با تفسیر
-📜 <b>نهج‌البلاغه</b> - خطبه‌ها، نامه‌ها و حکمت‌ها
-🤲 <b>صحیفه سجادیه</b> - دعاهای نورانی
-🕊️ <b>احادیث</b> - روایات معصومین
-📚 <b>مقالات علمی</b> - از گوگل اسکالر
-
-🔍 <b>چگونه کار می‌کند؟</b>
-• هر کلمه یا موضوعی را وارد کنید
-• ربات مترادف‌ها و کلمات کلیدی را تشخیص می‌دهد
-• در همه منابع جستجو می‌کند
-• نتایج را به صورت دسته‌بندی شده نمایش می‌دهد
-
-💡 <b>مثال‌ها:</b>
-• «صبر» → آیات صبر، روایات صبر، مقالات مرتبط
-• «استرس» → آیات آرامش، دعاهای مرتبط، مقالات روانشناسی
-• «امید» → آیات امید، حکمت‌های امید، مقالات امیدواری
-
-📝 <b>کافی است موضوع مورد نظر خود را در بخش «جستجوی قرآن» وارد کنید.</b>
-
-🌟 این موتور، ربات را از یک جستجوگر به یک دستیار پژوهشی اسلامی تبدیل می‌کند."""
-                    else:
-                        msg = safe_text(lang, "islamic_engine_info", default="🧠 Islamic Knowledge Engine")
-                    
-                    send_message(chat_id, msg, main_menu(chat_id, lang))
-                
                 else:
                     send_message(chat_id, safe_text(lang, "under_construction"), main_menu(chat_id, lang))
 
@@ -3777,10 +3681,10 @@ def referral_keyboard(lang, referral_code):
     }
 
 def main_menu(chat_id, lang):
-    """منوی اصلی با ۱۸ دکمه"""
+    """منوی اصلی با ۱۷ دکمه (جستجوی قرآن و موتور دانش اسلامی ادغام شده)"""
     labels = safe_lang_dict(lang)["menu_labels"]
     buttons = [
-        [{"text": labels["search_quran"], "callback_data": "menu_search_quran"},
+        [{"text": labels["islamic_search"], "callback_data": "menu_islamic_search"},
          {"text": labels["ai"], "callback_data": "menu_ai"}],
         [{"text": labels["articles"], "callback_data": "menu_articles"},
          {"text": labels["hadith"], "callback_data": "menu_hadith"}],
@@ -3799,8 +3703,7 @@ def main_menu(chat_id, lang):
         [{"text": labels["share"], "callback_data": "menu_share"},
          {"text": labels["quests"], "callback_data": "menu_quests"}],
         [{"text": labels["best_users"], "callback_data": "menu_best_users"},
-         {"text": labels["referral"], "callback_data": "menu_referral"}],
-        [{"text": labels["islamic_engine"], "callback_data": "menu_islamic_engine"}]
+         {"text": labels["referral"], "callback_data": "menu_referral"}]
     ]
     
     # اضافه کردن پنل ادمین برای ادمین
