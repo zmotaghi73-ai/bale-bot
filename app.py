@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۰.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۱.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search) با OpenRouter
 با سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه سجادیه + نهج‌البلاغه)
@@ -59,14 +59,13 @@ if not TOKEN:
     logger.error("⚠️ BOT_TOKEN تنظیم نشده است!")
     raise ValueError("BOT_TOKEN is required")
 
-# کلیدهای API
+# کلید جدید OpenRouter (نسخه دوم - معتبر)
+OPENROUTER_KEY = "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"
+OPENROUTER_MODEL = "deepseek/deepseek-v4-flash"  # ✅ مدل صحیح
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
 # کلید قدیمی DeepSeek (برای سازگاری)
 DEEPSEEK_KEY = "sk-090c2a86847c4583944621a5113d0382"
-
-# کلید جدید OpenRouter
-OPENROUTER_KEY = "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"
-OPENROUTER_MODEL = "deepseek/deepseek-v4-flash:free"  # مدل رایگان
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 ADMIN_ID = int(os.getenv("ADMIN_ID", "722283092"))
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@quran_sums")
@@ -111,7 +110,7 @@ SERP_API_KEY = os.getenv("SERP_API_KEY", "")
 # =========================================================
 FEATURES = {
     "quran_search": True,
-    "deepseek_ai": True,  # با OpenRouter کار می‌کند
+    "deepseek_ai": True,
     "daily_posts": True,
     "hadith_dhikr": True,
     "instant_quran": True,
@@ -144,7 +143,7 @@ FEATURES = {
 }
 
 # =========================================================
-# ۳. سیستم چندزبانه کامل (به‌روز شده با ترجمه‌های جدید)
+# ۳. سیستم چندزبانه کامل
 # =========================================================
 LANGS = {
     "fa": {
@@ -366,11 +365,9 @@ LANGS = {
 }
 
 def safe_lang_dict(lang_code):
-    """دریافت دیکشنری زبان با پشتیبانی از خطا"""
     return LANGS.get(lang_code, LANGS["fa"])
 
 def safe_text(lang_code, key, default=None, **kwargs):
-    """دریافت متن با پشتیبانی از جایگزینی و خطا"""
     lang_dict = safe_lang_dict(lang_code)
     text = lang_dict.get(key, default if default is not None else key)
     if kwargs:
@@ -381,7 +378,7 @@ def safe_text(lang_code, key, default=None, **kwargs):
     return text
 
 # =========================================================
-# ۴. داده‌های مهدویت (جذاب‌تر شده)
+# ۴. داده‌های مهدویت
 # =========================================================
 MAHDI_MESSAGES_DATA = [
     {"id": "mahdi_salawat_5", "title": "🕊️ ۵ صلوات برای امام زمان", "desc": "۵ صلوات هدیه به امام زمان (عج)", "points": 3, "message": "🌟 امروز ۵ صلوات برای ظهور امام زمان (عج) هدیه بفرست!\nاللَّهُمَّ صَلِّ عَلَی مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ 🌸"},
@@ -394,7 +391,7 @@ MAHDI_MESSAGES_DATA = [
 ]
 
 # =========================================================
-# ۵. داده‌های اولیه و نمونه (با محتوای بیشتر برای چرخش)
+# ۵. داده‌های اولیه و نمونه
 # =========================================================
 DEFAULT_QURAN_SEED = [
     {"index": 1, "surah": "حمد", "verse": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "trans": "به نام خداوند بخشنده مهربان", "interpretation": "شروع هر کار با نام خدا، نشانه توکل و ایمان است.", "topics": ["ایمان", "توکل", "شروع", "بسم الله"]},
@@ -446,7 +443,7 @@ DEFAULT_TOPICS = {
 }
 
 # =========================================================
-# ۷. احادیث و ذکر روزانه با منبع کامل
+# ۷. احادیث و ذکر روزانه
 # =========================================================
 HADITHS_WITH_DHIKR = [
     {"hadith": "بهترین شما کسی است که قرآن را بیاموزد و به دیگران یاد دهد. 🌸", "arabic": "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ", "source": "📚 صحیح بخاری، جلد ۶، صفحه ۵۰۲", "source2": "📚 اصول کافی، جلد ۲، صفحه ۶۰۵", "dhikr": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ (۱۰۰ بار)", "category": "آموزش", "topics": ["آموزش", "علم", "یادگیری"]},
@@ -528,7 +525,6 @@ QUEST_ACTIONS = [
 # ۱۰. توابع راه‌اندازی و مدیریت فایل‌های JSON
 # =========================================================
 def ensure_library_files():
-    """ایجاد فایل‌های کتابخانه در صورت عدم وجود"""
     files_to_create = [
         (QURAN_FILE, DEFAULT_QURAN_SEED),
         (NAHJ_FILE, DEFAULT_NAHJ_SEED),
@@ -539,7 +535,6 @@ def ensure_library_files():
         (SURVEYS_FILE, {}),
         (MAHDI_FILE, MAHDI_MESSAGES_DATA)
     ]
-    
     for file_path, default_data in files_to_create:
         if not os.path.exists(file_path):
             try:
@@ -548,17 +543,13 @@ def ensure_library_files():
                 logger.info(f"📁 فایل {file_path} ایجاد شد.")
             except Exception as e:
                 logger.error(f"خطا در ایجاد فایل {file_path}: {e}")
-    
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
 
 def load_library():
-    """بارگذاری تمام کتابخانه‌ها"""
     global QURAN_DATA, NAHJ_DATA, SAHIFEH_DATA, ARTICLE_CACHE, TOPICS_DATA, FAVORITES_DATA, SURVEYS_DATA, MAHDI_MESSAGES
-    
     try:
         ensure_library_files()
-        
         with open(QURAN_FILE, "r", encoding="utf-8") as f:
             QURAN_DATA = json.load(f)
         with open(NAHJ_FILE, "r", encoding="utf-8") as f:
@@ -575,9 +566,7 @@ def load_library():
             SURVEYS_DATA = json.load(f)
         with open(MAHDI_FILE, "r", encoding="utf-8") as f:
             MAHDI_MESSAGES = json.load(f)
-            
         logger.info(f"📚 کتابخانه بارگذاری شد: قرآن={len(QURAN_DATA)}, نهج‌البلاغه={len(NAHJ_DATA)}, صحیفه={len(SAHIFEH_DATA)}")
-        
         if not QURAN_DATA:
             QURAN_DATA = DEFAULT_QURAN_SEED
             save_library_file(QURAN_FILE, QURAN_DATA)
@@ -599,7 +588,6 @@ def load_library():
         if not MAHDI_MESSAGES:
             MAHDI_MESSAGES = MAHDI_MESSAGES_DATA
             save_library_file(MAHDI_FILE, MAHDI_MESSAGES)
-            
     except Exception as e:
         logger.error(f"خطا در بارگذاری: {e}")
         QURAN_DATA = DEFAULT_QURAN_SEED
@@ -696,7 +684,7 @@ def get_survey_results(survey_id):
     return {"question": survey["question"], "total_votes": total_votes, "results": results, "active": survey["active"]}
 
 # =========================================================
-# ۱۳. سیستم ذخیره آیات مورد علاقه (بهبود یافته)
+# ۱۳. سیستم ذخیره آیات مورد علاقه
 # =========================================================
 def add_favorite(user_id, verse_data):
     user_id = str(user_id)
@@ -735,13 +723,10 @@ def remove_favorite(user_id, index):
     return True, "🗑️ آیه با موفقیت از علاقه‌مندی‌های شما حذف شد."
 
 def format_favorites_message(favorites, lang="fa"):
-    """فرمت‌سازی زیبای لیست آیات مورد علاقه"""
     if not favorites:
         return "❤️ شما هنوز هیچ آیه‌ای ذخیره نکرده‌اید.\n\n💡 برای ذخیره آیه، پس از جستجوی هوشمند، روی دکمه «ذخیره این آیه» کلیک کنید."
-    
     msg = "❤️ <b>آیات مورد علاقه شما</b>\n\n"
     msg += "═" * 30 + "\n\n"
-    
     for i, fav in enumerate(favorites, 1):
         msg += f"📖 {i}. <b>{fav.get('surah', '')} (آیه {fav.get('verse', '')})</b>\n"
         msg += f"   {fav.get('text', '')[:60]}...\n"
@@ -750,10 +735,8 @@ def format_favorites_message(favorites, lang="fa"):
             msg += f"   🏷️ {', '.join(fav.get('topics', [])[:3])}\n"
         msg += f"   📅 ذخیره شده: {fav.get('saved_at', '').split('T')[0] if fav.get('saved_at') else 'نامشخص'}\n"
         msg += "\n"
-    
     msg += "═" * 30 + "\n"
     msg += f"📊 مجموع: {len(favorites)} آیه ذخیره شده"
-    
     return msg
 
 # =========================================================
@@ -821,7 +804,7 @@ def get_greeting(lang):
             return "Good Night 🌙"
 
 # =========================================================
-# ۱۵. جستجوی اینترنتی واقعی
+# ۱۵. جستجوی اینترنتی واقعی (اصلاح شده)
 # =========================================================
 def internet_search(query, lang="fa"):
     if not FEATURES["internet_search"]:
@@ -858,14 +841,27 @@ def internet_search(query, lang="fa"):
                 for work in data.get("results", [])[:5]:
                     title = work.get("title", "بدون عنوان")
                     doi = work.get("doi", "")
-                    link = f"https://doi.org/{doi}" if doi else ""
-                    results.append({"title": title, "snippet": work.get("abstract", "")[:200], "link": link, "source": "OpenAlex"})
+                    if doi:
+                        if doi.startswith("https://doi.org/"):
+                            link = doi
+                        elif doi.startswith("http://doi.org/"):
+                            link = doi.replace("http://", "https://")
+                        else:
+                            link = f"https://doi.org/{doi}"
+                    else:
+                        link = ""
+                    results.append({
+                        "title": title,
+                        "snippet": work.get("abstract", "")[:200] if work.get("abstract") else "",
+                        "link": link,
+                        "source": "OpenAlex"
+                    })
         except Exception as e:
             logger.error(f"خطا در جستجوی OpenAlex: {e}")
     return results
 
 # =========================================================
-# ۱۶. موتور جستجوی هوشمند یکپارچه (بهبود یافته)
+# ۱۶. موتور جستجوی هوشمند یکپارچه
 # =========================================================
 def expand_topic(query):
     query_lower = query.lower()
@@ -929,7 +925,6 @@ def smart_search(query, lang="fa", use_ai=True):
     
     if use_ai and FEATURES["deepseek_ai"]:
         try:
-            # استفاده از OpenRouter به جای DeepSeek
             ai_prompt = f"""Based on the following Islamic search results for "{query}", provide a comprehensive and thoughtful response:
 
 Quran Results: {[{'surah': r.get('surah'), 'verse': r.get('verse'), 'text': r.get('text')} for r in results['quran'][:3]]}
@@ -937,10 +932,13 @@ Hadith Results: {[{'hadith': r.get('hadith'), 'source': r.get('source')} for r i
 
 Please provide a complete, warm, and insightful answer that combines these sources with your knowledge. Explain the spiritual and practical significance for medical professionals and students. Keep the tone friendly and inspiring."""
             ai_response = ask_ai(ai_prompt, lang)
-            results["ai_response"] = ai_response
+            if not ai_response.startswith(("⚠️", "🔑", "⏳", "💳", "🔧")):
+                results["ai_response"] = ai_response
+            else:
+                results["ai_response"] = ""
         except Exception as e:
             logger.error(f"خطا در پاسخ AI: {e}")
-            results["ai_response"] = "⚠️ خطا در دریافت پاسخ هوش مصنوعی."
+            results["ai_response"] = ""
     
     results["quran"] = results["quran"][:5]
     results["nahj"] = results["nahj"][:3]
@@ -952,7 +950,6 @@ Please provide a complete, warm, and insightful answer that combines these sourc
     return results
 
 def format_smart_results(results, query, lang="fa"):
-    """فرمت‌سازی نتایج جستجوی هوشمند با طراحی زیبا"""
     if not results:
         return f"🔍 نتیجه‌ای برای «{query}» یافت نشد.\n\n💡 پیشنهاد: از کلمات کلیدی ساده‌تر استفاده کنید یا از بخش «هوش مصنوعی» سوال خود را بپرسید."
     
@@ -1313,15 +1310,13 @@ def schedule_best_users():
             time.sleep(60)
 
 # =========================================================
-# ۲۱. سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه + نهج‌البلاغه)
+# ۲۱. سیستم ارسال روزانه سه‌گانه
 # =========================================================
 def get_next_item(book_name, data_list):
-    """دریافت آیتم بعدی برای چرخش از ابتدا تا انتها"""
     if not data_list:
         return None, 0
     current_idx, last_date = get_publish_index(book_name)
     today = datetime.now().date().isoformat()
-    # اگر امروز قبلاً ارسال شده، همان را برگردان
     if last_date and today in last_date:
         return None, current_idx
     idx = current_idx
@@ -1332,7 +1327,6 @@ def get_next_item(book_name, data_list):
     return item, new_idx
 
 def format_daily_message(item, book_type, lang="fa"):
-    """فرمت‌سازی پیام روزانه بر اساس نوع کتاب و زبان کاربر"""
     if book_type == "quran":
         title = safe_text(lang, "daily_quran_title")
         text = f"""📘 <b>{title}</b>
@@ -1349,7 +1343,6 @@ def format_daily_message(item, book_type, lang="fa"):
 🏷️ <b>موضوعات:</b>
 {', '.join(item.get('topics', ['عمومی']))}
 """
-        # اضافه کردن نسخه انگلیسی برای کاربران غیرفارسی
         if lang != "fa":
             en_text = f"""
 ━━━━━━━━━━━━━━━━━━━
@@ -1412,12 +1405,10 @@ def format_daily_message(item, book_type, lang="fa"):
     return "⚠️ خطا در فرمت‌سازی پیام."
 
 def send_daily_posts():
-    """ارسال سه پیام روزانه به کانال: قرآن، صحیفه، نهج‌البلاغه"""
     try:
         if not FEATURES["daily_posts"]:
             return
         now = datetime.now()
-        # زمان‌های ارسال: صبح ۸، ظهر ۱۲، عصر ۱۸
         scheduled_times = [(8, 0, "صبح 🌅"), (12, 0, "ظهر ☀️"), (18, 0, "عصر 🌇")]
         
         for hour, minute, time_name in scheduled_times:
@@ -1426,43 +1417,33 @@ def send_daily_posts():
                     time.sleep(1)
                     continue
                 
-                # تعیین نوع کتاب بر اساس زمان
-                if hour == 8:  # صبح - قرآن
+                if hour == 8:
                     book_type = "quran"
                     data_list = QURAN_DATA
                     book_name = "quran"
-                    title_key = "daily_quran_title"
-                elif hour == 12:  # ظهر - صحیفه سجادیه
+                elif hour == 12:
                     book_type = "sahifeh"
                     data_list = SAHIFEH_DATA
                     book_name = "sahifeh"
-                    title_key = "daily_sahifeh_title"
-                else:  # عصر - نهج‌البلاغه
+                else:
                     book_type = "nahj"
                     data_list = NAHJ_DATA
                     book_name = "nahj"
-                    title_key = "daily_nahj_title"
                 
-                # دریافت آیتم بعدی
                 item, new_idx = get_next_item(book_name, data_list)
                 if not item:
                     logger.warning(f"⚠️ داده‌ای برای {book_name} یافت نشد.")
                     break
                 
-                # فرمت‌سازی پیام به زبان فارسی (زبان اصلی کانال)
                 msg = format_daily_message(item, book_type, "fa")
-                
-                # اضافه کردن هدر روز
                 persian_date = get_persian_date()
                 msg = f"🌟 <b>کانون قرآن و عترت</b>\n📅 {persian_date}\n\n{msg}"
                 
-                # ارسال به کانال
                 send_message(CHANNEL_ID, msg)
                 set_publish_index(book_name, new_idx)
                 save_sent_message(f"daily_{book_name}", msg[:500], CHANNEL_ID)
                 logger.info(f"✅ پیام {book_name} در {time_name} ارسال شد. ایندکس جدید: {new_idx}")
                 
-                # ارسال به کاربرانی که دریافت روزانه فعال دارند
                 try:
                     conn = db_conn()
                     cur = conn.cursor()
@@ -1474,7 +1455,6 @@ def send_daily_posts():
                     for user in users:
                         try:
                             user_lang = user[2] if user[2] in ["fa", "en", "ar"] else "fa"
-                            # برای کاربران انگلیسی زبان، پیام با ترجمه انگلیسی
                             user_msg = format_daily_message(item, book_type, user_lang)
                             user_msg = f"🌟 <b>کانون قرآن و عترت</b>\n📅 {get_persian_date() if user_lang == 'fa' else datetime.now().strftime('%Y-%m-%d')}\n\n{user_msg}"
                             send_message(user[0], user_msg)
@@ -1488,7 +1468,6 @@ def send_daily_posts():
                 except Exception as e:
                     logger.error(f"خطا در دریافت کاربران: {e}")
                 
-                # وقفه برای جلوگیری از ارسال چندباره
                 time.sleep(60)
                 break
                 
@@ -1497,7 +1476,6 @@ def send_daily_posts():
         logger.error(f"خطا در ارسال روزانه: {e}")
 
 def next_item(book_name, data_list):
-    """تابع پشتیبان برای سازگاری با نسخه‌های قبلی"""
     return get_next_item(book_name, data_list)
 
 # =========================================================
@@ -1522,7 +1500,6 @@ def send_weekly_report():
         feedbacks = cur.fetchone()[0]
         cur.execute("SELECT name, score FROM users ORDER BY score DESC LIMIT 1")
         best_user = cur.fetchone()
-        # آمار کتاب‌ها
         quran_idx, _ = get_publish_index("quran")
         sahifeh_idx, _ = get_publish_index("sahifeh")
         nahj_idx, _ = get_publish_index("nahj")
@@ -2084,21 +2061,16 @@ def send_chat_action(chat_id, action="typing"):
     return send_bale("sendChatAction", {"chat_id": chat_id, "action": action})
 
 # =========================================================
-# ۲۷. هوش مصنوعی OpenRouter (جایگزین DeepSeek)
+# ۲۷. هوش مصنوعی OpenRouter
 # =========================================================
 def ask_ai(question, lang):
-    """ارسال سوال به OpenRouter با مدیریت خطا"""
-    
-    # بررسی فعال بودن هوش مصنوعی
     if not FEATURES["deepseek_ai"]:
         return "🔧 ویژگی هوش مصنوعی در حال حاضر غیرفعال است."
     
-    # بررسی کلید API OpenRouter
     if not OPENROUTER_KEY or len(OPENROUTER_KEY) < 10:
         logger.error("❌ کلید OpenRouter تنظیم نشده است!")
         return "🔑 کلید API تنظیم نشده است. لطفاً با ادمین تماس بگیرید."
     
-    # محدودیت نرخ درخواست
     current_time = time.time()
     chat_id = int(time.time()) % 10000
     
@@ -2114,10 +2086,8 @@ def ask_ai(question, lang):
         RATE_LIMIT_COUNTER[chat_id] = 1
         RATE_LIMIT_TIME[chat_id] = current_time
     
-    # تنظیمات زبان
     language_name = {"fa": "Persian", "en": "English", "ar": "Arabic"}.get(lang, "Persian")
     
-    # سیستم پرامپت
     system_prompt = f"""You are a warm, respectful Islamic assistant for a Quranic student bot. 
 Reply in {language_name}. Keep answers:
 - Useful and practical
@@ -2127,20 +2097,17 @@ Reply in {language_name}. Keep answers:
 - Relevant for medical students and professionals
 Always mention Quranic verses or Hadith when appropriate."""
     
-    # آماده‌سازی پیام‌ها
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": question}
     ]
     
-    # اضافه کردن تاریخچه مکالمه
     conversation_key = f"conv_{chat_id}"
     if conversation_key not in CONVERSATION_HISTORY:
         CONVERSATION_HISTORY[conversation_key] = []
     for msg in CONVERSATION_HISTORY[conversation_key][-5:]:
         messages.append(msg)
     
-    # هدرهای درخواست OpenRouter
     headers = {
         "Authorization": f"Bearer {OPENROUTER_KEY}",
         "Content-Type": "application/json",
@@ -2148,7 +2115,6 @@ Always mention Quranic verses or Hadith when appropriate."""
         "X-Title": "Quran Bot"
     }
     
-    # بدنه درخواست
     payload = {
         "model": OPENROUTER_MODEL,
         "messages": messages,
@@ -2158,7 +2124,6 @@ Always mention Quranic verses or Hadith when appropriate."""
     }
     
     try:
-        # ارسال درخواست
         res = requests.post(
             OPENROUTER_URL,
             headers=headers,
@@ -2166,19 +2131,14 @@ Always mention Quranic verses or Hadith when appropriate."""
             timeout=45
         )
         
-        # بررسی پاسخ
         if res.status_code == 200:
             data = res.json()
             if "choices" in data and data["choices"]:
                 answer = data["choices"][0]["message"]["content"]
-                
-                # ذخیره تاریخچه
                 CONVERSATION_HISTORY[conversation_key].append({"role": "user", "content": question})
                 CONVERSATION_HISTORY[conversation_key].append({"role": "assistant", "content": answer})
-                
                 return answer
         
-        # مدیریت خطاهای مختلف
         elif res.status_code == 401:
             logger.error("❌ خطای احراز هویت OpenRouter: کلید API نامعتبر است")
             return "🔑 کلید API نامعتبر است. لطفاً با ادمین تماس بگیرید."
@@ -2207,13 +2167,11 @@ Always mention Quranic verses or Hadith when appropriate."""
         logger.error(f"❌ خطای غیرمنتظره OpenRouter: {e}")
         return "⚠️ خطا در ارتباط با هوش مصنوعی. لطفاً دوباره تلاش کنید."
 
-# تابع پشتیبان برای سازگاری با نسخه‌های قبلی
 def ask_deepseek(question, lang):
-    """تابع پشتیبان برای سازگاری با نسخه‌های قبلی"""
     return ask_ai(question, lang)
 
 # =========================================================
-# ۲۸. کیبوردهای اینلاین (۳ ستون)
+# ۲۸. کیبوردهای اینلاین
 # =========================================================
 def lang_keyboard():
     return {"inline_keyboard": [[{"text": "🇮🇷 فارسی", "callback_data": "setlang_fa"}], [{"text": "🇬🇧 English", "callback_data": "setlang_en"}], [{"text": "🇸🇦 العربية", "callback_data": "setlang_ar"}]]}
@@ -2284,7 +2242,6 @@ def profile_keyboard(lang):
     ]}
 
 def mahdi_keyboard(lang):
-    """کیبورد مهدویت با ۷ گزینه و طراحی جذاب"""
     return {"inline_keyboard": [
         [{"text": "🕊️ ۵ صلوات (۳ امتیاز)", "callback_data": "mahdi_salawat_5"}],
         [{"text": "🕊️ ۱۴ صلوات (۵ امتیاز)", "callback_data": "mahdi_salawat_14"}],
@@ -2811,7 +2768,7 @@ def webhook_token():
                 return "OK", 200
             
             # ===========================
-            # بخش مهدویت (جذاب‌تر شده)
+            # بخش مهدویت
             # ===========================
             if cb_data == "menu_mahdi":
                 if not FEATURES["mahdi_section"]:
@@ -2852,7 +2809,7 @@ def webhook_token():
                 return "OK", 200
             
             # ===========================
-            # اقدامات مهدویت (با پیام‌های جذاب‌تر)
+            # اقدامات مهدویت
             # ===========================
             if cb_data.startswith("mahdi_"):
                 action_id = cb_data
@@ -3108,7 +3065,7 @@ https://ble.ir/{bot_username}"""
                 return "OK", 200
             
             # ===========================
-            # آیات مورد علاقه (بهبود یافته)
+            # آیات مورد علاقه
             # ===========================
             if cb_data == "menu_favorites":
                 favorites = get_favorites(chat_id)
@@ -3546,12 +3503,10 @@ https://ble.ir/{bot_username}"""
 # ۳۲. ادامه وب هوک - توابع وضعیت
 # =========================================================
 def handle_state_message(chat_id, text, user):
-    """پردازش پیام‌های وضعیت‌دار کاربر"""
     lang = user["lang"]
     state = user["state"]
     name = user["name"] or "کاربر گرامی"
     
-    # وضعیت هوش مصنوعی
     if state == "waiting_ai":
         send_message(chat_id, safe_text(lang, "ai_wait"))
         answer = ask_ai(text, lang)
@@ -3560,7 +3515,6 @@ def handle_state_message(chat_id, text, user):
         update_user_score(chat_id, "ai_question", user)
         return True
     
-    # وضعیت پیام به ادمین
     if state == "waiting_admin_msg":
         try:
             admin_text = f"""📩 <b>پیام جدید از کاربر</b>
@@ -3580,7 +3534,6 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
     
-    # وضعیت جستجوی هوشمند (اصلاح شده برای نمایش بهتر)
     if state == "waiting_quran_search":
         send_chat_action(chat_id, "typing")
         try:
@@ -3625,7 +3578,6 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
     
-    # وضعیت پیشنهاد/انتقاد
     if state == "waiting_feedback":
         if not FEATURES["feedback_system"]:
             send_message(chat_id, "🔧 این ویژگی غیرفعال است.", main_menu(chat_id, lang))
@@ -3670,7 +3622,6 @@ def handle_state_message(chat_id, text, user):
         update_user_score(chat_id, "feedback", user)
         return True
     
-    # وضعیت ارسال همگانی
     if state == "waiting_broadcast":
         if chat_id != ADMIN_ID:
             send_message(chat_id, "⛔ دسترسی غیرمجاز.")
@@ -3694,7 +3645,6 @@ def handle_state_message(chat_id, text, user):
         send_message(chat_id, safe_text(lang, "broadcast_success", count=count), admin_menu(chat_id, lang))
         return True
     
-    # وضعیت یادآوری
     if state == "waiting_reminder":
         try:
             conn = db_conn()
@@ -3709,7 +3659,6 @@ def handle_state_message(chat_id, text, user):
         update_user(chat_id, state="none")
         return True
     
-    # وضعیت تغییر نام
     if state == "waiting_profile_name":
         if len(text) > 30:
             send_message(chat_id, "⚠️ نام نباید بیشتر از ۳۰ کاراکتر باشد.", back_menu_keyboard(lang))
@@ -3718,7 +3667,6 @@ def handle_state_message(chat_id, text, user):
         send_message(chat_id, f"✅ نام شما با موفقیت به «{text}» تغییر یافت!", main_menu(chat_id, lang))
         return True
     
-    # وضعیت تغییر بیو
     if state == "waiting_profile_bio":
         if len(text) > 100:
             send_message(chat_id, "⚠️ بیو نباید بیشتر از ۱۰۰ کاراکتر باشد.", back_menu_keyboard(lang))
@@ -3737,7 +3685,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "20.0",
+        "version": "21.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "total_users": get_user_count(),
@@ -3764,9 +3712,9 @@ def startup():
         load_library()
         logger.info("✅ کتابخانه بارگذاری شد.")
         
-        # بررسی کلید OpenRouter
         if OPENROUTER_KEY and len(OPENROUTER_KEY) > 10:
             logger.info("✅ کلید OpenRouter تنظیم شده است.")
+            logger.info(f"📌 مدل استفاده شده: {OPENROUTER_MODEL}")
             FEATURES["deepseek_ai"] = True
         else:
             logger.warning("⚠️ کلید OpenRouter نامعتبر است.")
