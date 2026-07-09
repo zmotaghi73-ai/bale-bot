@@ -1500,7 +1500,8 @@ def send_daily_posts():
                     book_name = "quran"
                 elif hour == 12:
                     book_type = "sahifeh"
-                    data_list = SAHIFEH_DATA                    book_name = "sahifeh"
+                    data_list = SAHIFEH_DATA
+                    book_name = "sahifeh"
                 else:
                     book_type = "nahj"
                     data_list = NAHJ_DATA
