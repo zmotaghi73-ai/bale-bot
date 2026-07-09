@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۱.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۲.۰ (نسخه نهایی و جامع)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search) با OpenRouter
 با سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه سجادیه + نهج‌البلاغه)
+با منوی زیرشاخه‌ای حرفه‌ای و دانشجوپسند
 تمامی دستورات نسخه‌های قبلی حفظ شده است
 """
 
@@ -59,10 +60,14 @@ if not TOKEN:
     logger.error("⚠️ BOT_TOKEN تنظیم نشده است!")
     raise ValueError("BOT_TOKEN is required")
 
-# کلید جدید OpenRouter (نسخه دوم - معتبر)
+# کلیدهای API
 OPENROUTER_KEY = "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"
-OPENROUTER_MODEL = "deepseek/deepseek-v4-flash"  # ✅ مدل صحیح
+OPENROUTER_MODEL = "deepseek/deepseek-v4-flash"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# کلید Serper.dev برای جستجوی اینترنتی
+SERPER_API_KEY = "e7a36e000e2e9f0ece80bd5b634836cd4017f011"
+SERPER_URL = "https://google.serper.dev/search"
 
 # کلید قدیمی DeepSeek (برای سازگاری)
 DEEPSEEK_KEY = "sk-090c2a86847c4583944621a5113d0382"
@@ -103,7 +108,7 @@ MAHDI_MESSAGES = []
 # کلیدهای API دیگر
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GOOGLE_CX_ID = os.getenv("GOOGLE_CX_ID", "")
-SERP_API_KEY = os.getenv("SERP_API_KEY", "")
+SERP_API_KEY_OLD = os.getenv("SERP_API_KEY", "")
 
 # =========================================================
 # ۲. Feature Flags
@@ -804,13 +809,83 @@ def get_greeting(lang):
             return "Good Night 🌙"
 
 # =========================================================
-# ۱۵. جستجوی اینترنتی واقعی (اصلاح شده)
+# ۱۵. جستجوی اینترنتی با Serper.dev
 # =========================================================
 def internet_search(query, lang="fa"):
     if not FEATURES["internet_search"]:
         return []
+    
     results = []
-    if GOOGLE_API_KEY and GOOGLE_CX_ID:
+    
+    # استفاده از Serper.dev (جستجوی گوگل)
+    if SERPER_API_KEY and len(SERPER_API_KEY) > 10:
+        try:
+            headers = {
+                "X-API-KEY": SERPER_API_KEY,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "q": query,
+                "num": 10,
+                "gl": "ir" if lang == "fa" else "us",
+                "hl": "fa" if lang == "fa" else "en"
+            }
+            
+            response = requests.post(
+                SERPER_URL,
+                headers=headers,
+                json=payload,
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                for item in data.get("organic", [])[:10]:
+                    results.append({
+                        "title": item.get("title", "بدون عنوان"),
+                        "snippet": item.get("snippet", ""),
+                        "link": item.get("link", ""),
+                        "source": "Google (Serper.dev)",
+                        "category": "اینترنت"
+                    })
+                
+                # نتایج دانشنامه
+                if data.get("knowledgeGraph"):
+                    kg = data.get("knowledgeGraph")
+                    if kg.get("description"):
+                        results.append({
+                            "title": kg.get("title", "دانشنامه"),
+                            "snippet": kg.get("description", ""),
+                            "link": kg.get("website", ""),
+                            "source": "Knowledge Graph",
+                            "category": "دانشنامه"
+                        })
+                
+                # نتایج پرسش‌های مرتبط
+                for item in data.get("peopleAlsoAsk", [])[:3]:
+                    if item.get("snippet"):
+                        results.append({
+                            "title": item.get("question", "سوال مرتبط"),
+                            "snippet": item.get("snippet", ""),
+                            "link": "",
+                            "source": "People Also Ask",
+                            "category": "پرسش و پاسخ"
+                        })
+                
+                logger.info(f"✅ جستجوی Serper.dev: {len(results)} نتیجه برای '{query}'")
+                return results
+                
+            elif response.status_code == 401:
+                logger.error("❌ کلید Serper.dev نامعتبر است!")
+            elif response.status_code == 429:
+                logger.warning("⚠️ محدودیت درخواست Serper.dev")
+                
+        except Exception as e:
+            logger.error(f"خطا در جستجوی Serper.dev: {e}")
+    
+    # پشتیبان: Google Custom Search
+    if GOOGLE_API_KEY and GOOGLE_CX_ID and not results:
         try:
             url = "https://www.googleapis.com/customsearch/v1"
             params = {"key": GOOGLE_API_KEY, "cx": GOOGLE_CX_ID, "q": query, "num": 5}
@@ -821,17 +896,8 @@ def internet_search(query, lang="fa"):
                     results.append({"title": item.get("title", "بدون عنوان"), "snippet": item.get("snippet", ""), "link": item.get("link", ""), "source": "Google"})
         except Exception as e:
             logger.error(f"خطا در جستجوی گوگل: {e}")
-    if SERP_API_KEY and not results:
-        try:
-            url = "https://serpapi.com/search"
-            params = {"api_key": SERP_API_KEY, "q": query, "num": 5, "hl": "fa" if lang == "fa" else "en"}
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                for item in data.get("organic_results", [])[:5]:
-                    results.append({"title": item.get("title", "بدون عنوان"), "snippet": item.get("snippet", ""), "link": item.get("link", ""), "source": "SerpAPI"})
-        except Exception as e:
-            logger.error(f"خطا در جستجوی SerpAPI: {e}")
+    
+    # پشتیبان: OpenAlex
     if not results:
         try:
             url = f"https://api.openalex.org/works?search={query.replace(' ', '+')}&per-page=5"
@@ -858,6 +924,7 @@ def internet_search(query, lang="fa"):
                     })
         except Exception as e:
             logger.error(f"خطا در جستجوی OpenAlex: {e}")
+    
     return results
 
 # =========================================================
@@ -888,7 +955,7 @@ def smart_search(query, lang="fa", use_ai=True):
         return SEARCH_CACHE[cache_key]
     
     expanded_terms = expand_topic(query)
-    results = {"quran": [], "nahj": [], "sahifeh": [], "hadith": [], "articles": [], "ai_response": ""}
+    results = {"quran": [], "nahj": [], "sahifeh": [], "hadith": [], "articles": [], "ai_response": "", "sources_count": 0}
     
     for item in QURAN_DATA:
         search_text = " ".join([str(item.get("text", "")), str(item.get("trans", "")), str(item.get("surah", "")), str(item.get("interpretation", "")), " ".join(item.get("topics", []))]).lower()
@@ -923,14 +990,24 @@ def smart_search(query, lang="fa", use_ai=True):
         for item in internet_results:
             results["articles"].append({"title": item.get("title", ""), "summary": item.get("snippet", ""), "link": item.get("link", ""), "source": item.get("source", ""), "category": "اینترنتی"})
     
+    results["sources_count"] = len(results["quran"]) + len(results["nahj"]) + len(results["sahifeh"]) + len(results["hadith"]) + len(results["articles"])
+    
     if use_ai and FEATURES["deepseek_ai"]:
         try:
-            ai_prompt = f"""Based on the following Islamic search results for "{query}", provide a comprehensive and thoughtful response:
+            quran_texts = [f"{r.get('surah', '')} آیه {r.get('verse', '')}: {r.get('text', '')}" for r in results["quran"][:3]]
+            hadith_texts = [r.get('hadith', '') for r in results["hadith"][:2]]
+            internet_texts = [f"{r.get('title', '')}: {r.get('summary', '')[:100]}" for r in results["articles"][:3]]
+            
+            ai_prompt = f"""Based on the following search results for "{query}", provide a comprehensive and thoughtful response:
 
-Quran Results: {[{'surah': r.get('surah'), 'verse': r.get('verse'), 'text': r.get('text')} for r in results['quran'][:3]]}
-Hadith Results: {[{'hadith': r.get('hadith'), 'source': r.get('source')} for r in results['hadith'][:2]]}
+Quran Results: {quran_texts}
+Hadith Results: {hadith_texts}
+Internet Results: {internet_texts}
 
-Please provide a complete, warm, and insightful answer that combines these sources with your knowledge. Explain the spiritual and practical significance for medical professionals and students. Keep the tone friendly and inspiring."""
+Please provide a complete, warm, and insightful answer that combines these sources with your knowledge. 
+Explain the spiritual and practical significance. Keep the tone friendly and inspiring. 
+Include relevant links from the internet results when appropriate."""
+            
             ai_response = ask_ai(ai_prompt, lang)
             if not ai_response.startswith(("⚠️", "🔑", "⏳", "💳", "🔧")):
                 results["ai_response"] = ai_response
@@ -944,20 +1021,35 @@ Please provide a complete, warm, and insightful answer that combines these sourc
     results["nahj"] = results["nahj"][:3]
     results["sahifeh"] = results["sahifeh"][:3]
     results["hadith"] = results["hadith"][:3]
-    results["articles"] = results["articles"][:5]
+    results["articles"] = results["articles"][:10]
     
     SEARCH_CACHE[cache_key] = results
     return results
 
 def format_smart_results(results, query, lang="fa"):
-    if not results:
+    if not results or results["sources_count"] == 0:
         return f"🔍 نتیجه‌ای برای «{query}» یافت نشد.\n\n💡 پیشنهاد: از کلمات کلیدی ساده‌تر استفاده کنید یا از بخش «هوش مصنوعی» سوال خود را بپرسید."
     
-    output = f"🧠 <b>موتور جستجوی هوشمند - «{query}»</b>\n{'='*50}\n\n"
+    output = f"🧠 <b>موتور جستجوی هوشمند - «{query}»</b>\n"
+    output += f"📊 <b>{results['sources_count']} نتیجه</b> از {len(results['quran'])} قرآن + {len(results['hadith'])} حدیث + {len(results['articles'])} اینترنت\n"
+    output += "="*60 + "\n\n"
     
     if results.get("ai_response"):
         output += "🤖 <b>تحلیل هوش مصنوعی:</b>\n"
         output += f"{results['ai_response']}\n\n"
+        output += "─" * 40 + "\n\n"
+    
+    if results.get("articles"):
+        output += "🌐 <b>نتایج جستجوی اینترنتی:</b>\n\n"
+        for i, item in enumerate(results["articles"][:10], 1):
+            output += f"{i}. <b>{item.get('title', 'بدون عنوان')}</b>\n"
+            if item.get('summary'):
+                output += f"   📝 {item.get('summary', '')[:200]}...\n"
+            if item.get('link'):
+                output += f"   🔗 <a href='{item['link']}'>لینک</a>\n"
+            if item.get('source'):
+                output += f"   📌 منبع: {item['source']}\n"
+            output += "\n"
         output += "─" * 40 + "\n\n"
     
     if results.get("quran"):
@@ -998,21 +1090,6 @@ def format_smart_results(results, query, lang="fa"):
                 output += f"   📝 {item['arabic']}\n"
             if item.get('source'):
                 output += f"   📚 {item['source']}\n"
-            if item.get('source2'):
-                output += f"   📚 {item['source2']}\n"
-            output += f"   🔹 ذکر: {item['dhikr']}\n"
-            output += f"   🏷️ دسته: {item['category']}\n\n"
-    
-    if results.get("articles"):
-        output += "📚 <b>مقالات و منابع مرتبط:</b>\n\n"
-        for i, item in enumerate(results["articles"][:5], 1):
-            output += f"{i}. <b>{item.get('title', 'بدون عنوان')}</b>\n"
-            if item.get('summary'):
-                output += f"   📝 {item.get('summary', '')[:150]}...\n"
-            if item.get('link'):
-                output += f"   🔗 <a href='{item['link']}'>لینک</a>\n"
-            if item.get('source'):
-                output += f"   📌 منبع: {item['source']}\n"
             output += "\n"
     
     output += "─" * 40 + "\n"
@@ -1310,7 +1387,7 @@ def schedule_best_users():
             time.sleep(60)
 
 # =========================================================
-# ۲۱. سیستم ارسال روزانه سه‌گانه
+# ۲۱. سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه + نهج‌البلاغه)
 # =========================================================
 def get_next_item(book_name, data_list):
     if not data_list:
@@ -2171,7 +2248,7 @@ def ask_deepseek(question, lang):
     return ask_ai(question, lang)
 
 # =========================================================
-# ۲۸. کیبوردهای اینلاین
+# ۲۸. کیبوردهای اینلاین (منوی حرفه‌ای با زیرشاخه)
 # =========================================================
 def lang_keyboard():
     return {"inline_keyboard": [[{"text": "🇮🇷 فارسی", "callback_data": "setlang_fa"}], [{"text": "🇬🇧 English", "callback_data": "setlang_en"}], [{"text": "🇸🇦 العربية", "callback_data": "setlang_ar"}]]}
@@ -2184,6 +2261,127 @@ def back_menu_keyboard(lang):
     text = safe_text(lang, "back_to_menu")
     return {"inline_keyboard": [[{"text": text, "callback_data": "back_main"}]]}
 
+# =========================================================
+# ۲۸-الف. منوی اصلی جدید (۶ دکمه با زیرشاخه)
+# =========================================================
+def main_menu(chat_id, lang):
+    """منوی اصلی با ۶ دکمه و طراحی حرفه‌ای دانشجوپسند"""
+    buttons = [
+        [{"text": "📚 کتابخانه قرآن", "callback_data": "menu_library"}],
+        [{"text": "🔍 جستجوی هوشمند", "callback_data": "menu_search"}],
+        [{"text": "🤖 مشاوره هوش مصنوعی", "callback_data": "menu_ai"}],
+        [{"text": "🏆 جام قرآنی", "callback_data": "menu_competitions"}],
+        [{"text": "👤 پروفایل من", "callback_data": "menu_account"}],
+        [{"text": "⚙️ خدمات بیشتر", "callback_data": "menu_more"}],
+    ]
+    if chat_id == ADMIN_ID and FEATURES["admin_panel"]:
+        buttons.append([{"text": "🛠️ پنل مدیریت", "callback_data": "admin_panel"}])
+    return {"inline_keyboard": buttons}
+
+# =========================================================
+# ۲۸-ب. زیرمنوها
+# =========================================================
+def library_submenu(lang):
+    """زیرمنو: کتابخانه قرآن"""
+    return {"inline_keyboard": [
+        [{"text": "📖 قرآن کریم", "callback_data": "menu_quran"},
+         {"text": "📜 نهج‌البلاغه", "callback_data": "menu_nahj"},
+         {"text": "🤲 صحیفه سجادیه", "callback_data": "menu_sahifeh"}],
+        [{"text": "🕊️ احادیث روزانه", "callback_data": "menu_hadith"},
+         {"text": "✨ قرآن در لحظه", "callback_data": "menu_instant_quran"},
+         {"text": "📚 مقالات علمی", "callback_data": "menu_articles"}],
+        [{"text": "🔔 دریافت روزانه", "callback_data": "menu_daily_toggle"},
+         {"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def search_submenu(lang):
+    """زیرمنو: جستجوی هوشمند"""
+    return {"inline_keyboard": [
+        [{"text": "🧠 جستجوی جامع (همه منابع)", "callback_data": "menu_smart_search"}],
+        [{"text": "📖 جستجو در قرآن", "callback_data": "menu_quran_search"},
+         {"text": "🌐 جستجو در اینترنت", "callback_data": "menu_internet_search"}],
+        [{"text": "📜 جستجو در نهج‌البلاغه", "callback_data": "menu_nahj_search"},
+         {"text": "🤲 جستجو در صحیفه", "callback_data": "menu_sahifeh_search"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def ai_submenu(lang):
+    """زیرمنو: مشاوره هوش مصنوعی"""
+    return {"inline_keyboard": [
+        [{"text": "🤖 پرسش از هوش مصنوعی", "callback_data": "menu_ai_ask"}],
+        [{"text": "📝 تفسیر موضوعی", "callback_data": "menu_ai_tafsir"}],
+        [{"text": "🔮 پیشنهاد موضوعی", "callback_data": "menu_ai_suggest"},
+         {"text": "📊 تحلیل آماری", "callback_data": "menu_ai_stats"}],
+        [{"text": "🎯 تولید محتوای قرآنی", "callback_data": "menu_ai_content"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def competitions_submenu(lang):
+    """زیرمنو: جام قرآنی"""
+    return {"inline_keyboard": [
+        [{"text": "📊 لیگ قرآنی", "callback_data": "menu_league"},
+         {"text": "🎯 کوئست‌های روزانه", "callback_data": "menu_quests"}],
+        [{"text": "🏅 بهترین کاربران", "callback_data": "menu_best_users"},
+         {"text": "📋 کارنامه من", "callback_data": "menu_scorecard"}],
+        [{"text": "📈 روند پیشرفت", "callback_data": "menu_progress"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def account_submenu(lang):
+    """زیرمنو: پروفایل من"""
+    return {"inline_keyboard": [
+        [{"text": "📊 آمار پیشرفت", "callback_data": "menu_stats"},
+         {"text": "❤️ آیات مورد علاقه", "callback_data": "menu_favorites"}],
+        [{"text": "🏅 دستاوردهای من", "callback_data": "menu_achievements"},
+         {"text": "✏️ ویرایش پروفایل", "callback_data": "menu_profile"}],
+        [{"text": "📤 اشتراک‌گذاری", "callback_data": "menu_share"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def more_submenu(lang):
+    """زیرمنو: خدمات بیشتر"""
+    return {"inline_keyboard": [
+        [{"text": "📢 رویدادها و اخبار", "callback_data": "menu_events"},
+         {"text": "🤝 شبکه اجتماعی", "callback_data": "menu_social"}],
+        [{"text": "⏰ یادآوری‌ها", "callback_data": "menu_reminder"},
+         {"text": "🕊️ مهدویت", "callback_data": "menu_mahdi"}],
+        [{"text": "📝 پیشنهادات و انتقادات", "callback_data": "menu_feedback"},
+         {"text": "🌍 تنظیمات زبان", "callback_data": "menu_change_lang"}],
+        [{"text": "❓ راهنمای کاربری", "callback_data": "menu_help"},
+         {"text": "ℹ️ درباره ربات", "callback_data": "menu_about"}],
+        [{"text": "📨 تماس با ما", "callback_data": "menu_admin_msg"},
+         {"text": "🔔 تنظیمات اعلان‌ها", "callback_data": "menu_daily_toggle"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def mahdi_submenu(lang):
+    """زیرمنو: مهدویت"""
+    return {"inline_keyboard": [
+        [{"text": "🕊️ ۵ صلوات (۳ امتیاز)", "callback_data": "mahdi_salawat_5"},
+         {"text": "🕊️ ۱۴ صلوات (۵ امتیاز)", "callback_data": "mahdi_salawat_14"}],
+        [{"text": "🕊️ ۷۲ صلوات (۱۰ امتیاز)", "callback_data": "mahdi_salawat_72"},
+         {"text": "🎁 هدیه به امام زمان", "callback_data": "mahdi_gift"}],
+        [{"text": "🤝 کمک به دیگران", "callback_data": "mahdi_help"},
+         {"text": "🤲 دعا برای ظهور", "callback_data": "mahdi_dua"}],
+        [{"text": "💭 تفکر درباره ظهور", "callback_data": "mahdi_thought"},
+         {"text": "📊 آمار مهدوی من", "callback_data": "mahdi_stats"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+def admin_menu(chat_id, lang="fa"):
+    """پنل مدیریت"""
+    return {"inline_keyboard": [
+        [{"text": "📊 آمار و گزارشات", "callback_data": "admin_stats"}],
+        [{"text": "📩 مدیریت بازخوردها", "callback_data": "admin_feedbacks"}],
+        [{"text": "📢 ارسال اطلاعیه همگانی", "callback_data": "admin_broadcast"}],
+        [{"text": "👥 مدیریت کاربران", "callback_data": "admin_users"}],
+        [{"text": "⚙️ تنظیمات پیشرفته", "callback_data": "admin_schedule"}],
+        [{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_main"}]
+    ]}
+
+# =========================================================
+# ۲۸-ج. کیبوردهای قدیمی (سازگاری با نسخه‌های قبلی)
+# =========================================================
 def quest_keyboard(lang):
     return {"inline_keyboard": [
         [{"text": "🧠 جستجوی هوشمند (۵ امتیاز)", "callback_data": "quest_smart_search"}],
@@ -2239,66 +2437,6 @@ def profile_keyboard(lang):
         [{"text": "📝 تغییر بیو", "callback_data": "profile_bio"}],
         [{"text": "📊 مشاهده پروفایل", "callback_data": "profile_view"}],
         [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
-    ]}
-
-def mahdi_keyboard(lang):
-    return {"inline_keyboard": [
-        [{"text": "🕊️ ۵ صلوات (۳ امتیاز)", "callback_data": "mahdi_salawat_5"}],
-        [{"text": "🕊️ ۱۴ صلوات (۵ امتیاز)", "callback_data": "mahdi_salawat_14"}],
-        [{"text": "🕊️ ۷۲ صلوات (۱۰ امتیاز)", "callback_data": "mahdi_salawat_72"}],
-        [{"text": "🎁 هدیه به امام زمان (۳ امتیاز)", "callback_data": "mahdi_gift"}],
-        [{"text": "🤝 کمک به دیگران (۵ امتیاز)", "callback_data": "mahdi_help"}],
-        [{"text": "🤲 دعا برای ظهور (۳ امتیاز)", "callback_data": "mahdi_dua"}],
-        [{"text": "💭 تفکر درباره ظهور (۲ امتیاز)", "callback_data": "mahdi_thought"}],
-        [{"text": safe_text(lang, "back_to_menu"), "callback_data": "back_main"}]
-    ]}
-
-def main_menu(chat_id, lang):
-    labels = safe_lang_dict(lang)["menu_labels"]
-    buttons = [
-        [{"text": labels["smart_search"], "callback_data": "menu_smart_search"},
-         {"text": labels["hadith"], "callback_data": "menu_hadith"},
-         {"text": labels["instant_quran"], "callback_data": "menu_instant_quran"}],
-        [{"text": labels["events"], "callback_data": "menu_events"},
-         {"text": labels["feedback"], "callback_data": "menu_feedback"},
-         {"text": labels["admin_msg"], "callback_data": "menu_admin_msg"}],
-        [{"text": labels["stats"], "callback_data": "menu_stats"},
-         {"text": labels["league"], "callback_data": "menu_league"},
-         {"text": labels["scorecard"], "callback_data": "menu_scorecard"}],
-        [{"text": labels["change_lang"], "callback_data": "menu_change_lang"},
-         {"text": labels["daily_toggle"], "callback_data": "menu_daily_toggle"},
-         {"text": labels["about"], "callback_data": "menu_about"}],
-        [{"text": labels["help"], "callback_data": "menu_help"},
-         {"text": labels["reminder"], "callback_data": "menu_reminder"},
-         {"text": labels["share"], "callback_data": "menu_share"}],
-        [{"text": labels["quests"], "callback_data": "menu_quests"},
-         {"text": labels["best_users"], "callback_data": "menu_best_users"},
-         {"text": labels["referral"], "callback_data": "menu_referral"}],
-        [{"text": labels["favorites"], "callback_data": "menu_favorites"},
-         {"text": labels["faq"], "callback_data": "menu_faq"},
-         {"text": labels["profile"], "callback_data": "menu_profile"}],
-        [{"text": labels["mahdi"], "callback_data": "menu_mahdi"}]
-    ]
-    if chat_id == ADMIN_ID and FEATURES["admin_panel"]:
-        buttons.append([{"text": safe_text(lang, "admin_panel"), "callback_data": "admin_panel"}])
-    return {"inline_keyboard": buttons}
-
-def admin_menu(chat_id, lang="fa"):
-    return {"inline_keyboard": [
-        [{"text": safe_text(lang, "admin_stats"), "callback_data": "admin_stats"}],
-        [{"text": safe_text(lang, "admin_feedbacks"), "callback_data": "admin_feedbacks"}],
-        [{"text": safe_text(lang, "admin_broadcast"), "callback_data": "admin_broadcast"}],
-        [{"text": safe_text(lang, "admin_users"), "callback_data": "admin_users"}],
-        [{"text": safe_text(lang, "admin_schedule"), "callback_data": "admin_schedule"}],
-        [{"text": safe_text(lang, "admin_features"), "callback_data": "admin_features"}],
-        [{"text": safe_text(lang, "admin_logs"), "callback_data": "admin_logs"}],
-        [{"text": safe_text(lang, "admin_system"), "callback_data": "admin_system"}],
-        [{"text": safe_text(lang, "admin_achievements"), "callback_data": "admin_achievements"}],
-        [{"text": safe_text(lang, "admin_best_users"), "callback_data": "admin_best_users"}],
-        [{"text": safe_text(lang, "admin_referrals"), "callback_data": "admin_referrals"}],
-        [{"text": safe_text(lang, "admin_weekly_report"), "callback_data": "admin_weekly_report"}],
-        [{"text": safe_text(lang, "admin_surveys"), "callback_data": "admin_surveys"}],
-        [{"text": safe_text(lang, "admin_back"), "callback_data": "back_main"}]
     ]}
 
 def share_keyboard(lang):
@@ -2437,31 +2575,32 @@ def webhook_token():
                 update_user(chat_id, state="none")
                 return "OK", 200
             
-            greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
+            # پیام خوش‌آمدگویی جدید
             title = get_user_title(user.get("score", 0))
-            title_desc = get_user_title_description(title)
+            greeting = get_persian_greeting() if lang == "fa" else get_greeting(lang)
             
             if lang == "fa":
-                welcome_text = f"""{greeting}
+                welcome_text = f"""
+🌟 <b>به خانواده بزرگ کانون قرآن و عترت خوش آمدی!</b>
+{greeting}
 
-{first_name} جان! 😍
+👋 <b>سلام</b> {first_name} عزیز!
 
-چقدر خوشحالم که به جمع ما پیوندی! 🌸
+👑 <b>عنوان شما:</b> {title}
 
-به ربات کانون قرآن و عترت دانشگاه علوم پزشکی شیراز خوش آمدی.
-👑 عنوان تو: {title}
-💡 {title_desc}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 <b>چهار گنج بی‌نظیر در یک ربات:</b>
+📖 قرآن کریم | 📜 نهج‌البلاغه | 🤲 صحیفه سجادیه | 🕊️ احادیث
 
-✨ اینجا یه همراه همیشگی برای مسیر نور و معرفتته:
-• جستجوی هوشمند با AI 🧠
-• حدیث و ذکر روزانه 🕊️
-• قرآن در لحظه ✨
-• لیگ قرآنی 🏆
-• کوئست‌های روزانه 🎯
-• بخش مهدویت 🕊️
-• و کلی قابلیت دیگه!
+🤖 <b>همراه با هوش مصنوعی پیشرفته</b> برای پاسخگویی هوشمند
 
-👇 از منوی زیر انتخاب کن:"""
+👨‍🎓 <b>مناسب برای:</b> دانشجویان، اساتید، پژوهشگران و همه علاقه‌مندان
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 <b>توصیه ما:</b> با دکمه «کتابخانه قرآن» شروع کنید.
+
+👇 از منوی زیر انتخاب کنید:
+"""
             else:
                 welcome_text = safe_text(lang, "welcome", name=first_name)
             
@@ -2552,6 +2691,156 @@ def webhook_token():
                     logger.error(f"خطا در بررسی عضویت: {e}")
             
             # ===========================
+            # منوی کتابخانه
+            # ===========================
+            if cb_data == "menu_library":
+                send_message(chat_id, "📚 <b>کتابخانه قرآن</b>\n\nانتخاب کنید:", library_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # منوی جستجو
+            # ===========================
+            if cb_data == "menu_search":
+                send_message(chat_id, "🔍 <b>جستجوی هوشمند</b>\n\nانتخاب کنید:", search_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # منوی هوش مصنوعی
+            # ===========================
+            if cb_data == "menu_ai":
+                send_message(chat_id, "🤖 <b>مشاوره هوش مصنوعی</b>\n\nانتخاب کنید:", ai_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # منوی جام قرآنی
+            # ===========================
+            if cb_data == "menu_competitions":
+                send_message(chat_id, "🏆 <b>جام قرآنی</b>\n\nانتخاب کنید:", competitions_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # منوی پروفایل
+            # ===========================
+            if cb_data == "menu_account":
+                send_message(chat_id, "👤 <b>پروفایل من</b>\n\nانتخاب کنید:", account_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # منوی خدمات بیشتر
+            # ===========================
+            if cb_data == "menu_more":
+                send_message(chat_id, "⚙️ <b>خدمات بیشتر</b>\n\nانتخاب کنید:", more_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # منوی مهدویت
+            # ===========================
+            if cb_data == "menu_mahdi":
+                if not FEATURES["mahdi_section"]:
+                    send_message(chat_id, "🔧 این بخش غیرفعال است.", main_menu(chat_id, lang))
+                    return "OK", 200
+                try:
+                    conn = db_conn()
+                    cur = conn.cursor()
+                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ? AND completed_at > datetime('now', '-1 day')", (chat_id,))
+                    today_count = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ?", (chat_id,))
+                    total_count = cur.fetchone()[0]
+                    conn.close()
+                except:
+                    today_count = 0
+                    total_count = 0
+                
+                msg = f"""🕊️ <b>بخش مهدویت</b>
+🌟 {first_name} جان! امروز برای امام زمان (عج) چه می‌کنی؟
+
+📊 آمار امروز شما:
+• اقدامات امروز: {today_count} مورد
+• کل اقدامات: {total_count} مورد
+
+💡 با انجام هر یک از این کارها، علاوه بر امتیاز، به ظهور نزدیک‌تر می‌شوی:
+
+• ۵ صلوات (۳ امتیاز) 🌹
+• ۱۴ صلوات (۵ امتیاز) 🌹
+• ۷۲ صلوات (۱۰ امتیاز) 🌹
+• هدیه به امام زمان (۳ امتیاز) 🎁
+• کمک به دیگران (۵ امتیاز) 🤝
+• دعا برای ظهور (۳ امتیاز) 🤲
+• تفکر درباره ظهور (۲ امتیاز) 💭
+
+🌹 هر روز می‌توانی این کارها را انجام دهی.
+🕊️ امام زمان (عج) منتظر اعمال خوب توست!"""
+                send_message(chat_id, msg, mahdi_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # اقدامات مهدویت
+            # ===========================
+            if cb_data.startswith("mahdi_"):
+                action_id = cb_data
+                action_info = None
+                for item in MAHDI_MESSAGES_DATA:
+                    if item["id"] == action_id:
+                        action_info = item
+                        break
+                
+                if action_info:
+                    try:
+                        conn = db_conn()
+                        cur = conn.cursor()
+                        cur.execute("""
+                            SELECT id FROM mahdi_actions 
+                            WHERE user_id = ? AND action_id = ? 
+                            AND completed_at > datetime('now', '-1 day')
+                        """, (chat_id, action_id))
+                        existing = cur.fetchone()
+                        
+                        if existing:
+                            conn.close()
+                            repeat_messages = [
+                                "🌸 امروز قبلاً این کار را انجام داده‌ای!\n🌟 فردا دوباره امتحان کن!",
+                                "🌹 امروز روح امام زمان (عج) از کارت خوشحال شد!\n💚 فردا هم منتظر اعمال خوب توست!",
+                                "🕊️ امروز نور دیگری به دل امام زمان (عج) فرستادی!\n🌟 فردا دوباره بیا!"
+                            ]
+                            send_message(chat_id, f"✨ {random.choice(repeat_messages)}\n\n🕊️ {action_info['title']}", mahdi_submenu(lang))
+                            return "OK", 200
+                        
+                        cur.execute("""
+                            INSERT INTO mahdi_actions (user_id, action_id, completed_at)
+                            VALUES (?, ?, CURRENT_TIMESTAMP)
+                        """, (chat_id, action_id))
+                        conn.commit()
+                        conn.close()
+                        
+                        points = action_info["points"]
+                        update_user(chat_id, score=points)
+                        update_user_score(chat_id, action_id, user)
+                        
+                        congrat_messages = [
+                            f"🌹 {points} نور به قلب امام زمان (عج) فرستادی!",
+                            f"✨ با این کار، {points} قدم به ظهور نزدیک‌تر شدی!",
+                            f"🕊️ امروز {points} نوری بر دل امام زمان (عج) تاباندی!",
+                            f"💚 {points} امتیاز برای نزدیکی به ظهور!",
+                            f"🌟 {points} درجه در بهشت رضوان! 🌹"
+                        ]
+                        
+                        msg = f"""🕊️ <b>{action_info['title']}</b>
+
+{action_info['message']}
+
+🌟 {random.choice(congrat_messages)}
+💚 هر روز می‌توانی این کار را تکرار کنی.
+🕌 به یاد امام زمان (عج) باش!"""
+                        send_message(chat_id, msg, mahdi_submenu(lang))
+                        
+                    except Exception as e:
+                        logger.error(f"خطا در ثبت اقدام مهدویت: {e}")
+                        send_message(chat_id, "⚠️ خطا در ثبت اقدام. لطفاً دوباره تلاش کنید.", mahdi_submenu(lang))
+                else:
+                    send_message(chat_id, "🔧 این اقدام وجود ندارد.", main_menu(chat_id, lang))
+                return "OK", 200
+            
+            # ===========================
             # جستجوی هوشمند
             # ===========================
             if cb_data == "menu_smart_search":
@@ -2564,7 +2853,7 @@ def webhook_token():
 📜 نهج‌البلاغه
 🤲 صحیفه سجادیه
 🕊️ احادیث با منبع کامل
-🌐 اینترنت
+🌐 اینترنت (گوگل)
 🤖 هوش مصنوعی
 📝 لطفاً عبارت خود را ارسال کن:"""
                 else:
@@ -2575,7 +2864,7 @@ def webhook_token():
             # ===========================
             # حدیث روز
             # ===========================
-            if cb_data == "menu_hadith":
+            if cb_data == "menu_hadith" or cb_data == "menu_hadith_old":
                 if not FEATURES["hadith_dhikr"]:
                     send_message(chat_id, "🔧 این ویژگی غیرفعال است.", main_menu(chat_id, lang))
                     return "OK", 200
@@ -2744,135 +3033,38 @@ def webhook_token():
             if cb_data == "menu_help":
                 if lang == "fa":
                     help_text = """❓ <b>راهنمای استفاده از ربات</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🧠 <b>جستجوی هوشمند اسلامی:</b>
 • عبارت مورد نظر را وارد کنید
-• نتایج از قرآن، نهج‌البلاغه، صحیفه سجادیه، احادیث و مقالات
+• نتایج از قرآن، نهج‌البلاغه، صحیفه سجادیه، احادیث و اینترنت
+
 🕊️ <b>حدیث و ذکر:</b>
 • دریافت حدیث روزانه با منبع کامل
+
 ✨ <b>قرآن در لحظه:</b>
 • دریافت آیه‌های کوتاه و پرمعنا
+
 🏆 <b>لیگ قرآنی:</b>
-• رقابت با سایر کاربران
+• رقابت با سایر کاربران و کسب امتیاز
+
 🎯 <b>کوئست‌های روزانه:</b>
-• انجام کوئست‌های مختلف
+• انجام کوئست‌های مختلف و دریافت امتیاز
+
 🤝 <b>سیستم دعوت:</b>
 • دعوت از دوستان با لینک اختصاصی
+
 🕊️ <b>بخش مهدویت:</b>
 • اعمال مربوط به امام زمان (عج)
+
 🌍 <b>زبان‌های پشتیبانی:</b>
 • فارسی 🇮🇷 | English 🇬🇧 | العربية 🇸🇦
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💚 همراه همیشگی تو در مسیر نور"""
                 else:
                     help_text = safe_text(lang, "help_text", default="📚 Help Guide")
                 send_message(chat_id, help_text, main_menu(chat_id, lang))
-                return "OK", 200
-            
-            # ===========================
-            # بخش مهدویت
-            # ===========================
-            if cb_data == "menu_mahdi":
-                if not FEATURES["mahdi_section"]:
-                    send_message(chat_id, "🔧 این بخش غیرفعال است.", main_menu(chat_id, lang))
-                    return "OK", 200
-                try:
-                    conn = db_conn()
-                    cur = conn.cursor()
-                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ? AND completed_at > datetime('now', '-1 day')", (chat_id,))
-                    today_count = cur.fetchone()[0]
-                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ?", (chat_id,))
-                    total_count = cur.fetchone()[0]
-                    conn.close()
-                except:
-                    today_count = 0
-                    total_count = 0
-                
-                msg = f"""🕊️ <b>بخش مهدویت</b>
-🌟 {first_name} جان! امروز برای امام زمان (عج) چه می‌کنی؟
-
-📊 آمار امروز شما:
-• اقدامات امروز: {today_count} مورد
-• کل اقدامات: {total_count} مورد
-
-💡 با انجام هر یک از این کارها، علاوه بر امتیاز، به ظهور نزدیک‌تر می‌شوی:
-
-• ۵ صلوات (۳ امتیاز) 🌹
-• ۱۴ صلوات (۵ امتیاز) 🌹
-• ۷۲ صلوات (۱۰ امتیاز) 🌹
-• هدیه به امام زمان (۳ امتیاز) 🎁
-• کمک به دیگران (۵ امتیاز) 🤝
-• دعا برای ظهور (۳ امتیاز) 🤲
-• تفکر درباره ظهور (۲ امتیاز) 💭
-
-🌹 هر روز می‌توانی این کارها را انجام دهی.
-🕊️ امام زمان (عج) منتظر اعمال خوب توست!"""
-                send_message(chat_id, msg, mahdi_keyboard(lang))
-                return "OK", 200
-            
-            # ===========================
-            # اقدامات مهدویت
-            # ===========================
-            if cb_data.startswith("mahdi_"):
-                action_id = cb_data
-                action_info = None
-                for item in MAHDI_MESSAGES_DATA:
-                    if item["id"] == action_id:
-                        action_info = item
-                        break
-                
-                if action_info:
-                    try:
-                        conn = db_conn()
-                        cur = conn.cursor()
-                        cur.execute("""
-                            SELECT id FROM mahdi_actions 
-                            WHERE user_id = ? AND action_id = ? 
-                            AND completed_at > datetime('now', '-1 day')
-                        """, (chat_id, action_id))
-                        existing = cur.fetchone()
-                        
-                        if existing:
-                            conn.close()
-                            repeat_messages = [
-                                "🌸 امروز قبلاً این کار را انجام داده‌ای!\n🌟 فردا دوباره امتحان کن!",
-                                "🌹 امروز روح امام زمان (عج) از کارت خوشحال شد!\n💚 فردا هم منتظر اعمال خوب توست!",
-                                "🕊️ امروز نور دیگری به دل امام زمان (عج) فرستادی!\n🌟 فردا دوباره بیا!"
-                            ]
-                            send_message(chat_id, f"✨ {random.choice(repeat_messages)}\n\n🕊️ {action_info['title']}", mahdi_keyboard(lang))
-                            return "OK", 200
-                        
-                        cur.execute("""
-                            INSERT INTO mahdi_actions (user_id, action_id, completed_at)
-                            VALUES (?, ?, CURRENT_TIMESTAMP)
-                        """, (chat_id, action_id))
-                        conn.commit()
-                        conn.close()
-                        
-                        points = action_info["points"]
-                        update_user(chat_id, score=points)
-                        update_user_score(chat_id, action_id, user)
-                        
-                        congrat_messages = [
-                            f"🌹 {points} نور به قلب امام زمان (عج) فرستادی!",
-                            f"✨ با این کار، {points} قدم به ظهور نزدیک‌تر شدی!",
-                            f"🕊️ امروز {points} نوری بر دل امام زمان (عج) تاباندی!",
-                            f"💚 {points} امتیاز برای نزدیکی به ظهور!",
-                            f"🌟 {points} درجه در بهشت رضوان! 🌹"
-                        ]
-                        
-                        msg = f"""🕊️ <b>{action_info['title']}</b>
-
-{action_info['message']}
-
-🌟 {random.choice(congrat_messages)}
-💚 هر روز می‌توانی این کار را تکرار کنی.
-🕌 به یاد امام زمان (عج) باش!"""
-                        send_message(chat_id, msg, mahdi_keyboard(lang))
-                        
-                    except Exception as e:
-                        logger.error(f"خطا در ثبت اقدام مهدویت: {e}")
-                        send_message(chat_id, "⚠️ خطا در ثبت اقدام. لطفاً دوباره تلاش کنید.", mahdi_keyboard(lang))
-                else:
-                    send_message(chat_id, "🔧 این اقدام وجود ندارد.", main_menu(chat_id, lang))
                 return "OK", 200
             
             # ===========================
@@ -3224,7 +3416,7 @@ https://ble.ir/{bot_username}"""
                     send_message(chat_id, "🔧 پنل ادمین غیرفعال است.", main_menu(chat_id, lang))
                     return "OK", 200
                 stats = get_system_stats()
-                admin_text = f"""🛠️ <b>پنل ادمین</b>
+                admin_text = f"""🛠️ <b>پنل مدیریت</b>
 {'='*50}
 📊 <b>آمار کلی:</b>
 👥 کل کاربران: {stats['total_users']}
@@ -3538,7 +3730,7 @@ def handle_state_message(chat_id, text, user):
         send_chat_action(chat_id, "typing")
         try:
             results = smart_search(text, lang)
-            if results and (results.get("quran") or results.get("nahj") or results.get("sahifeh") or results.get("hadith") or results.get("ai_response")):
+            if results and results["sources_count"] > 0:
                 formatted_result = format_smart_results(results, text, lang)
                 send_message(chat_id, formatted_result, main_menu(chat_id, lang))
                 update_user(chat_id, state="none", score=3, search_count=1)
@@ -3556,6 +3748,7 @@ def handle_state_message(chat_id, text, user):
         except Exception as e:
             logger.error(f"خطا در جستجوی پیشرفته: {e}")
         
+        # جستجوی ساده به عنوان پشتیبان
         results = search_quran_only(text)
         if results:
             msg = "📖 <b>نتایج جستجو در قرآن:</b>\n\n"
@@ -3675,6 +3868,29 @@ def handle_state_message(chat_id, text, user):
         send_message(chat_id, f"✅ بیو شما با موفقیت به روز شد!", main_menu(chat_id, lang))
         return True
     
+    # وضعیت جستجوی پیشرفته‌تر - پشتیبانی از هوش مصنوعی
+    if state == "waiting_ai_ask":
+        send_message(chat_id, "⏳ در حال پردازش سوال شما با هوش مصنوعی...")
+        answer = ask_ai(text, lang)
+        send_message(chat_id, f"🤖 {answer}", main_menu(chat_id, lang))
+        update_user(chat_id, state="none", score=2)
+        return True
+    
+    if state == "menu_ai_ask":
+        update_user(chat_id, state="waiting_ai_ask")
+        send_message(chat_id, "🤖 <b>پرسش از هوش مصنوعی</b>\n\nسوال خود را مطرح کنید:", back_menu_keyboard(lang))
+        return True
+    
+    if state == "menu_ai_tafsir":
+        update_user(chat_id, state="waiting_ai_ask")
+        send_message(chat_id, "📝 <b>تفسیر موضوعی</b>\n\nموضوع مورد نظر برای تفسیر را وارد کنید:", back_menu_keyboard(lang))
+        return True
+    
+    if state == "menu_ai_suggest":
+        update_user(chat_id, state="waiting_ai_ask")
+        send_message(chat_id, "🔮 <b>پیشنهاد موضوعی</b>\n\nموضوع مورد نظر را وارد کنید تا پیشنهادات مرتبط دریافت کنید:", back_menu_keyboard(lang))
+        return True
+    
     return False
 
 # =========================================================
@@ -3685,7 +3901,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "21.0",
+        "version": "22.0",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "total_users": get_user_count(),
@@ -3712,6 +3928,7 @@ def startup():
         load_library()
         logger.info("✅ کتابخانه بارگذاری شد.")
         
+        # بررسی کلیدهای API
         if OPENROUTER_KEY and len(OPENROUTER_KEY) > 10:
             logger.info("✅ کلید OpenRouter تنظیم شده است.")
             logger.info(f"📌 مدل استفاده شده: {OPENROUTER_MODEL}")
@@ -3720,6 +3937,13 @@ def startup():
             logger.warning("⚠️ کلید OpenRouter نامعتبر است.")
             FEATURES["deepseek_ai"] = False
         
+        if SERPER_API_KEY and len(SERPER_API_KEY) > 10:
+            logger.info("✅ کلید Serper.dev تنظیم شده است (جستجوی گوگل)")
+            FEATURES["internet_search"] = True
+        else:
+            logger.warning("⚠️ کلید Serper.dev تنظیم نشده است.")
+        
+        # راه‌اندازی تسک‌های زمان‌بندی
         if FEATURES["daily_posts"]:
             scheduler_thread = threading.Thread(target=daily_scheduler, daemon=True)
             scheduler_thread.start()
@@ -3750,6 +3974,7 @@ def startup():
             religious_thread.start()
             logger.info("✅ اسکژولر مناسبت‌های مذهبی راه‌اندازی شد.")
         
+        # پاکسازی کش
         def cache_cleaner():
             while True:
                 try:
@@ -3774,6 +3999,8 @@ def startup():
         logger.info(f"📜 تعداد فرازهای نهج‌البلاغه: {len(NAHJ_DATA)}")
         logger.info(f"🤲 تعداد دعاهای صحیفه: {len(SAHIFEH_DATA)}")
         logger.info(f"🤖 وضعیت هوش مصنوعی: {'فعال ✅' if FEATURES['deepseek_ai'] else 'غیرفعال ❌'}")
+        logger.info(f"🌐 وضعیت جستجوی اینترنتی: {'فعال ✅' if FEATURES['internet_search'] else 'غیرفعال ❌'}")
+        logger.info(f"📋 نسخه ربات: ۲۲.۰ (دانشجوپسند)")
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
 
