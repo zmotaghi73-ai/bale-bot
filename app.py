@@ -1500,8 +1500,7 @@ def send_daily_posts():
                     book_name = "quran"
                 elif hour == 12:
                     book_type = "sahifeh"
-                    data_list = SAHIFEH_DATA
-                    book_name = "sahifeh"
+                    data_list = SAHIFEH_DATA                    book_name = "sahifeh"
                 else:
                     book_type = "nahj"
                     data_list = NAHJ_DATA
@@ -3860,6 +3859,52 @@ https://ble.ir/{bot_username}"""
                                 msg += f"   {r['option']}: {r['votes']} رأی ({r['percentage']}%)\n"
                             msg += f"   📊 مجموع: {results['total_votes']} رأی\n\n"
                 send_message(chat_id, msg, admin_menu(chat_id, lang))
+                return "OK", 200
+            
+            # ===========================
+            # تحلیل آماری (اضافه شده برای رفع دکمه خراب)
+            # ===========================
+            if cb_data == "menu_ai_stats":
+                if lang == "fa":
+                    msg = """📊 <b>تحلیل آماری</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📈 این بخش به شما امکان می‌دهد:
+• آمار فعالیت‌های قرآنی خود را مشاهده کنید
+• روند پیشرفت خود را تحلیل کنید
+• نقاط قوت و ضعف خود را شناسایی کنید
+
+🔧 این بخش در حال توسعه است.
+به‌زودی قابلیت‌های کامل آن اضافه خواهد شد.
+
+💡 تا آن زمان، از بخش «روند پیشرفت» استفاده کنید."""
+                else:
+                    msg = "📊 Statistical Analysis\n\nThis section is under development."
+                send_message(chat_id, msg, ai_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # تولید محتوای قرآنی (اضافه شده برای رفع دکمه خراب)
+            # ===========================
+            if cb_data == "menu_ai_content":
+                update_user(chat_id, state="waiting_ai_ask")
+                if lang == "fa":
+                    msg = """🎯 <b>تولید محتوای قرآنی</b>
+
+📝 موضوع مورد نظر خود را وارد کنید تا هوش مصنوعی محتوای قرآنی مرتبط تولید کند.
+
+💡 مثال‌ها:
+• «تولید مقاله کوتاه درباره صبر در قرآن»
+• «نوشتن متن دعا برای آرامش روح»
+• «تولید محتوای تبلیغی برای ماه رمضان»
+• «نوشتن سخنرانی کوتاه درباره توکل»
+
+🤖 هوش مصنوعی با استفاده از منابع قرآنی، محتوای شما را تولید می‌کند.
+
+📝 لطفاً موضوع خود را ارسال کنید:"""
+                else:
+                    msg = "🎯 Quranic Content Generation\n\nEnter your topic:"
+                send_message(chat_id, msg, back_menu_keyboard(lang))
                 return "OK", 200
         
         return "OK", 200
