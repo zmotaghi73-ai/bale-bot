@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۲.۰ (نسخه نهایی و جامع)
+ربات حرفه‌ای کانون قرآن و عترت - نسخه ۲۲.۱ (نسخه نهایی و جامع - رفع دکمه‌های خراب)
 ویژه دانشگاه علوم پزشکی شیراز
 با موتور جستجوی هوشمند یکپارچه (AI + Islamic Search) با OpenRouter
 با سیستم ارسال روزانه سه‌گانه (قرآن + صحیفه سجادیه + نهج‌البلاغه)
@@ -2841,6 +2841,186 @@ def webhook_token():
                 return "OK", 200
             
             # ===========================
+            # دکمه‌های کتابخانه - قرآن، نهج‌البلاغه، صحیفه
+            # ===========================
+            if cb_data == "menu_quran":
+                send_message(chat_id, "📖 <b>قرآن کریم</b>\n\nبرای جستجو در قرآن، از دکمه «جستجوی هوشمند» استفاده کنید.\n\n💡 می‌توانید سوره یا موضوع مورد نظر را جستجو کنید.", library_submenu(lang))
+                return "OK", 200
+            
+            if cb_data == "menu_nahj":
+                send_message(chat_id, "📜 <b>نهج‌البلاغه</b>\n\nبرای جستجو در نهج‌البلاغه، از دکمه «جستجوی هوشمند» استفاده کنید.\n\n💡 می‌توانید خطبه، حکمت یا نامه مورد نظر را جستجو کنید.", library_submenu(lang))
+                return "OK", 200
+            
+            if cb_data == "menu_sahifeh":
+                send_message(chat_id, "🤲 <b>صحیفه سجادیه</b>\n\nبرای جستجو در صحیفه سجادیه، از دکمه «جستجوی هوشمند» استفاده کنید.\n\n💡 می‌توانید دعای مورد نظر را جستجو کنید.", library_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # مقالات علمی
+            # ===========================
+            if cb_data == "menu_articles":
+                update_user(chat_id, state="waiting_article_search")
+                if lang == "fa":
+                    msg = """📚 <b>جستجوی مقالات علمی</b>
+🔍 موضوع مقاله یا کلیدواژه مورد نظر را وارد کنید:
+💡 این موتور در پایگاه‌های علمی معتبر جستجو می‌کند.
+📝 لطفاً عبارت خود را ارسال کنید:"""
+                else:
+                    msg = safe_text(lang, "article_prompt")
+                send_message(chat_id, msg, back_menu_keyboard(lang))
+                return "OK", 200
+            
+            # ===========================
+            # جستجو در قرآن (تخصصی)
+            # ===========================
+            if cb_data == "menu_quran_search":
+                update_user(chat_id, state="waiting_quran_only")
+                if lang == "fa":
+                    msg = "📖 <b>جستجو در قرآن کریم</b>\n\nکلمه یا آیه مورد نظر را وارد کنید:\n💡 مثال: «بسم الله» یا «آیه الکرسی»"
+                else:
+                    msg = "📖 Search in the Holy Quran\n\nEnter a word or verse:"
+                send_message(chat_id, msg, back_menu_keyboard(lang))
+                return "OK", 200
+            
+            # ===========================
+            # جستجو در اینترنت
+            # ===========================
+            if cb_data == "menu_internet_search":
+                if not FEATURES["internet_search"]:
+                    send_message(chat_id, "🔧 جستجوی اینترنتی غیرفعال است.", search_submenu(lang))
+                    return "OK", 200
+                update_user(chat_id, state="waiting_internet_search")
+                if lang == "fa":
+                    msg = "🌐 <b>جستجو در اینترنت</b>\n\nموضوع مورد نظر خود را وارد کنید:\n💡 جستجو در گوگل با استفاده از Serper.dev"
+                else:
+                    msg = "🌐 Internet Search\n\nEnter your search term:"
+                send_message(chat_id, msg, back_menu_keyboard(lang))
+                return "OK", 200
+            
+            # ===========================
+            # جستجو در نهج‌البلاغه
+            # ===========================
+            if cb_data == "menu_nahj_search":
+                update_user(chat_id, state="waiting_nahj_search")
+                if lang == "fa":
+                    msg = "📜 <b>جستجو در نهج‌البلاغه</b>\n\nکلمه یا موضوع مورد نظر را وارد کنید:\n💡 مثال: «عدالت» یا «خطبه شقشقیه»"
+                else:
+                    msg = "📜 Search in Nahjul Balagha\n\nEnter a word or topic:"
+                send_message(chat_id, msg, back_menu_keyboard(lang))
+                return "OK", 200
+            
+            # ===========================
+            # جستجو در صحیفه سجادیه
+            # ===========================
+            if cb_data == "menu_sahifeh_search":
+                update_user(chat_id, state="waiting_sahifeh_search")
+                if lang == "fa":
+                    msg = "🤲 <b>جستجو در صحیفه سجادیه</b>\n\nکلمه یا موضوع مورد نظر را وارد کنید:\n💡 مثال: «دعا» یا «رحمت»"
+                else:
+                    msg = "🤲 Search in Sahifeh Sajjadieh\n\nEnter a word or topic:"
+                send_message(chat_id, msg, back_menu_keyboard(lang))
+                return "OK", 200
+            
+            # ===========================
+            # روند پیشرفت
+            # ===========================
+            if cb_data == "menu_progress":
+                user_data = get_user(chat_id)
+                if lang == "fa":
+                    msg = f"""📈 <b>روند پیشرفت شما</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 نام: {user_data.get('name', 'نامشخص')}
+🏆 امتیاز: {user_data.get('score', 0)}
+📖 کل جستجوها: {user_data.get('search_count', 0)}
+🔥 روزهای پیاپی: {user_data.get('streak', 0)}
+⭐ امتیاز بازخورد: {user_data.get('feedback_score', 0)}
+🎯 بازدیدها: {user_data.get('total_visits', 0)}
+✅ کوئست‌ها: {user_data.get('total_quests_completed', 0)}
+🤝 دعوت‌ها: {user_data.get('referral_count', 0)}
+💰 امتیاز دعوت: {user_data.get('referral_earned', 0)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💪 به تلاش خود ادامه دهید! 🚀"""
+                else:
+                    msg = safe_text(lang, "progress_info", default="📈 Your Progress")
+                send_message(chat_id, msg, competitions_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # شبکه اجتماعی
+            # ===========================
+            if cb_data == "menu_social":
+                bot_username = BOT_USERNAME
+                if lang == "fa":
+                    msg = f"""🤝 <b>شبکه اجتماعی ربات</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 با ما در شبکه‌های اجتماعی همراه شوید:
+
+📢 <b>کانال تلگرام:</b>
+{CHANNEL_ID}
+
+🤖 <b>ربات:</b>
+https://ble.ir/{bot_username}
+
+📱 <b>اشتراک‌گذاری:</b>
+با دوستان خود به اشتراک بگذارید و از دعوت‌ها امتیاز بگیرید!
+
+💚 همراه همیشگی شما در مسیر نور"""
+                else:
+                    msg = f"🤝 Social Network\n\nChannel: {CHANNEL_ID}\nBot: https://ble.ir/{bot_username}"
+                send_message(chat_id, msg, more_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # آمار مهدوی من
+            # ===========================
+            if cb_data == "mahdi_stats":
+                if not FEATURES["mahdi_section"]:
+                    send_message(chat_id, "🔧 این بخش غیرفعال است.", main_menu(chat_id, lang))
+                    return "OK", 200
+                try:
+                    conn = db_conn()
+                    cur = conn.cursor()
+                    cur.execute("SELECT COUNT(*) FROM mahdi_actions WHERE user_id = ?", (chat_id,))
+                    total = cur.fetchone()[0]
+                    cur.execute("SELECT action_id, COUNT(*) FROM mahdi_actions WHERE user_id = ? GROUP BY action_id", (chat_id,))
+                    actions = cur.fetchall()
+                    conn.close()
+                    
+                    if lang == "fa":
+                        msg = f"📊 <b>آمار مهدوی شما</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🌟 کل اقدامات: {total} مورد\n\n"
+                        if actions:
+                            msg += "🏷️ <b>تفکیک اقدامات:</b>\n"
+                            for action_id, count in actions:
+                                action_name = next((item['title'] for item in MAHDI_MESSAGES_DATA if item['id'] == action_id), action_id)
+                                msg += f"• {action_name}: {count} بار\n"
+                        else:
+                            msg += "🌸 هنوز هیچ اقدامی انجام نداده‌اید.\n💡 از منوی مهدویت شروع کنید!"
+                    else:
+                        msg = f"📊 Your Mahdi Stats\nTotal: {total}"
+                    send_message(chat_id, msg, mahdi_submenu(lang))
+                except Exception as e:
+                    logger.error(f"خطا در دریافت آمار مهدوی: {e}")
+                    send_message(chat_id, "⚠️ خطا در دریافت آمار.", mahdi_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
+            # دستاوردهای من
+            # ===========================
+            if cb_data == "menu_achievements":
+                achievements = get_user_achievements(chat_id)
+                if lang == "fa":
+                    if achievements:
+                        msg = "🏅 <b>دستاوردهای شما</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        for ach in achievements:
+                            msg += f"✅ {ach['name']}\n   💰 {ach['points']} امتیاز\n   📅 {ach['unlocked_at'][:10] if ach.get('unlocked_at') else ''}\n\n"
+                    else:
+                        msg = "🏅 شما هنوز هیچ دستاوردی کسب نکرده‌اید.\n\n💡 با فعالیت در ربات، دستاوردهای جدید کسب کنید:\n• جستجوی هوشمند 🔍\n• ارسال پیشنهاد 📝\n• بازدید روزانه 🌅\n• مطالعه حدیث 🕊️\n• دعوت از دوستان 🤝"
+                else:
+                    msg = safe_text(lang, "achievements_info", default="🏅 Your Achievements")
+                send_message(chat_id, msg, account_submenu(lang))
+                return "OK", 200
+            
+            # ===========================
             # جستجوی هوشمند
             # ===========================
             if cb_data == "menu_smart_search":
@@ -3868,6 +4048,109 @@ def handle_state_message(chat_id, text, user):
         send_message(chat_id, f"✅ بیو شما با موفقیت به روز شد!", main_menu(chat_id, lang))
         return True
     
+    # =========================================================
+    # وضعیت‌های جدید برای دکمه‌های اضافه شده
+    # =========================================================
+    if state == "waiting_article_search":
+        send_chat_action(chat_id, "typing")
+        results = internet_search(text, lang)
+        if results:
+            msg = safe_text(lang, "article_result", query=text, results="")
+            for i, item in enumerate(results[:5], 1):
+                msg += f"\n{i}. <b>{item.get('title', 'بدون عنوان')}</b>\n"
+                if item.get('snippet'):
+                    msg += f"   📝 {item.get('snippet', '')[:150]}...\n"
+                if item.get('link'):
+                    msg += f"   🔗 <a href='{item['link']}'>لینک</a>\n"
+            send_message(chat_id, msg, library_submenu(lang))
+        else:
+            if lang == "fa":
+                msg = f"😔 نتیجه‌ای برای «{text}» پیدا نشد.\n\n💡 پیشنهاد: از کلمات کلیدی ساده‌تر استفاده کنید."
+            else:
+                msg = f"😔 No results found for «{text}»."
+            send_message(chat_id, msg, library_submenu(lang))
+        update_user(chat_id, state="none")
+        return True
+    
+    if state == "waiting_quran_only":
+        send_chat_action(chat_id, "typing")
+        results = search_quran_only(text)
+        if results:
+            msg = "📖 <b>نتایج جستجو در قرآن:</b>\n\n"
+            for i, item in enumerate(results[:5], 1):
+                msg += f"{i}. {format_search_result(item, 'قرآن')}\n\n"
+            send_message(chat_id, msg, search_submenu(lang))
+            update_user(chat_id, score=1, search_count=1)
+            update_user_score(chat_id, "quran_search", user)
+        else:
+            if lang == "fa":
+                msg = f"😔 نتیجه‌ای برای «{text}» در قرآن پیدا نشد.\n\n💡 از جستجوی جامع یا هوش مصنوعی استفاده کنید."
+            else:
+                msg = f"😔 No results found in Quran for «{text}»."
+            send_message(chat_id, msg, search_submenu(lang))
+        update_user(chat_id, state="none")
+        return True
+    
+    if state == "waiting_internet_search":
+        send_chat_action(chat_id, "typing")
+        results = internet_search(text, lang)
+        if results:
+            msg = f"🌐 <b>نتایج جستجوی اینترنتی برای «{text}»</b>\n\n"
+            for i, item in enumerate(results[:5], 1):
+                msg += f"{i}. <b>{item.get('title', 'بدون عنوان')}</b>\n"
+                if item.get('snippet'):
+                    msg += f"   📝 {item.get('snippet', '')[:150]}...\n"
+                if item.get('link'):
+                    msg += f"   🔗 <a href='{item['link']}'>لینک</a>\n"
+                if item.get('source'):
+                    msg += f"   📌 منبع: {item['source']}\n"
+                msg += "\n"
+            send_message(chat_id, msg, search_submenu(lang))
+        else:
+            if lang == "fa":
+                msg = f"😔 نتیجه‌ای برای «{text}» در اینترنت پیدا نشد.\n\n💡 پیشنهاد: کلمات کلیدی خود را تغییر دهید."
+            else:
+                msg = f"😔 No results found for «{text}»."
+            send_message(chat_id, msg, search_submenu(lang))
+        update_user(chat_id, state="none")
+        return True
+    
+    if state == "waiting_nahj_search":
+        send_chat_action(chat_id, "typing")
+        results = search_other_books(text)
+        nahj_results = [r for r in results if r.get("book_type") == "نهج‌البلاغه"]
+        if nahj_results:
+            msg = "📜 <b>نتایج جستجو در نهج‌البلاغه:</b>\n\n"
+            for i, item in enumerate(nahj_results[:5], 1):
+                msg += f"{i}. {format_search_result(item, 'نهج‌البلاغه')}\n\n"
+            send_message(chat_id, msg, search_submenu(lang))
+        else:
+            if lang == "fa":
+                msg = f"😔 نتیجه‌ای برای «{text}» در نهج‌البلاغه پیدا نشد.\n\n💡 از جستجوی جامع استفاده کنید."
+            else:
+                msg = f"😔 No results found in Nahjul Balagha for «{text}»."
+            send_message(chat_id, msg, search_submenu(lang))
+        update_user(chat_id, state="none")
+        return True
+    
+    if state == "waiting_sahifeh_search":
+        send_chat_action(chat_id, "typing")
+        results = search_other_books(text)
+        sahifeh_results = [r for r in results if r.get("book_type") == "صحیفه سجادیه"]
+        if sahifeh_results:
+            msg = "🤲 <b>نتایج جستجو در صحیفه سجادیه:</b>\n\n"
+            for i, item in enumerate(sahifeh_results[:5], 1):
+                msg += f"{i}. {format_search_result(item, 'صحیفه سجادیه')}\n\n"
+            send_message(chat_id, msg, search_submenu(lang))
+        else:
+            if lang == "fa":
+                msg = f"😔 نتیجه‌ای برای «{text}» در صحیفه سجادیه پیدا نشد.\n\n💡 از جستجوی جامع استفاده کنید."
+            else:
+                msg = f"😔 No results found in Sahifeh Sajjadieh for «{text}»."
+            send_message(chat_id, msg, search_submenu(lang))
+        update_user(chat_id, state="none")
+        return True
+    
     # وضعیت جستجوی پیشرفته‌تر - پشتیبانی از هوش مصنوعی
     if state == "waiting_ai_ask":
         send_message(chat_id, "⏳ در حال پردازش سوال شما با هوش مصنوعی...")
@@ -3901,7 +4184,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "labbayk_quranbot",
-        "version": "22.0",
+        "version": "22.1",
         "time": datetime.now().isoformat(),
         "persian_date": get_persian_date(),
         "total_users": get_user_count(),
@@ -4000,7 +4283,7 @@ def startup():
         logger.info(f"🤲 تعداد دعاهای صحیفه: {len(SAHIFEH_DATA)}")
         logger.info(f"🤖 وضعیت هوش مصنوعی: {'فعال ✅' if FEATURES['deepseek_ai'] else 'غیرفعال ❌'}")
         logger.info(f"🌐 وضعیت جستجوی اینترنتی: {'فعال ✅' if FEATURES['internet_search'] else 'غیرفعال ❌'}")
-        logger.info(f"📋 نسخه ربات: ۲۲.۰ (دانشجوپسند)")
+        logger.info(f"📋 نسخه ربات: ۲۲.۱ (دانشجوپسند - رفع دکمه‌های خراب)")
     except Exception as e:
         logger.error(f"❌ خطا در راه‌اندازی: {e}")
 
